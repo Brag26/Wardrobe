@@ -18,23 +18,25 @@ import * as Device from 'expo-device';
 //   - Android emulator: 10.0.2.2 is its special alias for "the host machine"
 //   - iOS simulator + web (browser): both run ON the host machine
 //     directly, so localhost reaches it fine
+//   - STANDALONE BUILD (installed APK) on a real physical phone: uses
+//     the deployed backend below — this is what makes the app actually
+//     work "wherever it loads," not just on the same wifi as whoever's
+//     laptop happens to be running a local dev server.
 
-// ⚠️ FOR TESTING A STANDALONE APK ON A REAL PHONE, ON YOUR OWN WIFI:
-// fill this in with your computer's LAN IP (Windows: run `ipconfig`,
-// look for "IPv4 Address" under your active WiFi adapter — something
-// like 192.168.1.42). Your phone and computer must be on the SAME
-// wifi network for this to work at all.
-//
-// This is a real limitation, not a bug to keep patching around: a
-// locally-running backend on your laptop is only reachable by a real
-// phone while both are on the same network, and stops working the
-// moment either one changes wifi (including switching to mobile
-// data). For anything beyond quick same-room testing — including
-// tomorrow's presentation, if you can't guarantee the exact same wifi
-// the whole time — deploy the backend to a real hosting service
-// (Render, Railway, etc.) and put that public URL here instead. That
-// removes the wifi dependency entirely.
-const MANUAL_LAN_IP_FOR_PHYSICAL_DEVICE_TESTING = '172.29.189.171';
+// The real, deployed backend (Render) — reachable from any network,
+// not just a shared wifi. This is what a standalone APK on a real
+// phone uses by default now. Update this if the backend ever moves to
+// a different host/URL.
+const DEPLOYED_BACKEND_URL = 'https://wardrobe-76v8.onrender.com/api';
+
+// Optional override for LOCAL testing a standalone APK against your
+// own machine's backend instead of the deployed one (e.g. testing an
+// unreleased backend change before it's deployed). Leave blank to use
+// the deployed backend above by default — that's almost always what
+// you want. Only fill this in for a specific local-testing session,
+// and only works while phone + computer share the same wifi (Windows:
+// `ipconfig`, "IPv4 Address" under your active wifi adapter).
+const MANUAL_LAN_IP_OVERRIDE = '';
 
 function resolveApiBaseUrl(): string {
   // hostUri looks like "192.168.1.42:8081" when running via Expo Go's
@@ -46,7 +48,9 @@ function resolveApiBaseUrl(): string {
 
   // Connected to Expo Go's own dev server — extract the LAN IP Expo
   // Go already used to load this JS bundle. Works automatically, no
-  // manual config needed.
+  // manual config needed. This branch is for active local development
+  // only (via `npx expo start`), so it intentionally still targets your
+  // local backend rather than the deployed one.
   if (isPhysicalDevice && hostUri) {
     const lanIp = hostUri.split(':')[0];
     return `http://${lanIp}:4000/api`;
@@ -56,18 +60,21 @@ function resolveApiBaseUrl(): string {
   // has NO dev-server connection to read a LAN IP from — hostUri is
   // always empty here. Previously this case fell through to the
   // emulator-only 10.0.2.2 alias, which doesn't mean anything on a
-  // real device and just hangs forever (the "stuck on loading" bug).
+  // real device and just hung forever (the "stuck on loading" bug).
+  // Now defaults to the real deployed backend, which works from any
+  // network — the LAN override only kicks in if explicitly set above.
   if (isPhysicalDevice) {
-    if (MANUAL_LAN_IP_FOR_PHYSICAL_DEVICE_TESTING) {
-      return `http://${MANUAL_LAN_IP_FOR_PHYSICAL_DEVICE_TESTING}:4000/api`;
+    if (MANUAL_LAN_IP_OVERRIDE) {
+      return `http://${MANUAL_LAN_IP_OVERRIDE}:4000/api`;
     }
-    console.warn('[wardrobeApi] Running a standalone build on a real device with no MANUAL_LAN_IP_FOR_PHYSICAL_DEVICE_TESTING set and no dev-server connection — API calls will fail. Fill in that constant, or point this at a deployed backend URL.');
+    return DEPLOYED_BACKEND_URL;
   }
 
   // Emulator/simulator only from here on — 10.0.2.2 is Android
   // emulator's real alias for "the host machine"; iOS
   // simulator/web run ON the host machine directly, so localhost
-  // reaches it fine.
+  // reaches it fine. Kept pointed at local backend for fast dev
+  // iteration without round-tripping to the deployed server.
   return Platform.select({
     android: 'http://10.0.2.2:4000/api',
     ios: 'http://localhost:4000/api',
