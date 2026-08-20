@@ -1,13 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// CHANGE THIS to match how you're running the app right now:
-//   Android Emulator (current setup)  -> 'http://10.0.2.2:4000/api'
-//   iOS Simulator                     -> 'http://localhost:4000/api'
-//   Physical phone via Expo Go        -> 'http://<your-computer's-LAN-IP>:4000/api'
-// Using the wrong one for your setup causes every request to silently
-// fail to connect — this was the actual cause of the "Crafting magic"
-// screen hanging forever and Home stats stuck on "–": not a bug in the
-// app logic, just this URL not matching the emulator's networking.
+// API base URL is auto-detected per platform/device below — see
+// resolveApiBaseUrl(). Android emulator, iOS simulator, and Expo Go on
+// a physical device all work automatically with zero config. A
+// STANDALONE BUILD (installed APK) on a real physical phone is the one
+// case that needs manual setup — see MANUAL_LAN_IP_FOR_PHYSICAL_DEVICE_TESTING
+// below, since there's no dev-server connection to auto-detect a LAN IP from.
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
@@ -20,22 +18,56 @@ import * as Device from 'expo-device';
 //   - Android emulator: 10.0.2.2 is its special alias for "the host machine"
 //   - iOS simulator + web (browser): both run ON the host machine
 //     directly, so localhost reaches it fine
-function resolveApiBaseUrl(): string {
-  // hostUri looks like "192.168.1.42:8081" when running via Expo Go.
-  // Device.isDevice (from expo-device) is true only on a REAL physical
-  // device — Constants.isDevice used to serve this purpose but was
-  // removed from expo-constants in a past SDK update, so this uses the
-  // correct current API instead. Without this check, an emulator ALSO
-  // running Expo Go would match the same hostUri condition and
-  // incorrectly get a LAN IP instead of its 10.0.2.2 alias.
-  const hostUri = Constants.expoConfig?.hostUri ?? (Constants as any).manifest?.debuggerHost;
-  const isPhysicalDeviceViaExpoGo = !!hostUri && Device.isDevice === true;
 
-  if (isPhysicalDeviceViaExpoGo) {
+// ⚠️ FOR TESTING A STANDALONE APK ON A REAL PHONE, ON YOUR OWN WIFI:
+// fill this in with your computer's LAN IP (Windows: run `ipconfig`,
+// look for "IPv4 Address" under your active WiFi adapter — something
+// like 192.168.1.42). Your phone and computer must be on the SAME
+// wifi network for this to work at all.
+//
+// This is a real limitation, not a bug to keep patching around: a
+// locally-running backend on your laptop is only reachable by a real
+// phone while both are on the same network, and stops working the
+// moment either one changes wifi (including switching to mobile
+// data). For anything beyond quick same-room testing — including
+// tomorrow's presentation, if you can't guarantee the exact same wifi
+// the whole time — deploy the backend to a real hosting service
+// (Render, Railway, etc.) and put that public URL here instead. That
+// removes the wifi dependency entirely.
+const MANUAL_LAN_IP_FOR_PHYSICAL_DEVICE_TESTING = '172.29.189.171';
+
+function resolveApiBaseUrl(): string {
+  // hostUri looks like "192.168.1.42:8081" when running via Expo Go's
+  // dev server. Device.isDevice (from expo-device) is true only on a
+  // REAL physical device — Constants.isDevice used to serve this
+  // purpose but was removed from expo-constants in a past SDK update.
+  const hostUri = Constants.expoConfig?.hostUri ?? (Constants as any).manifest?.debuggerHost;
+  const isPhysicalDevice = Device.isDevice === true;
+
+  // Connected to Expo Go's own dev server — extract the LAN IP Expo
+  // Go already used to load this JS bundle. Works automatically, no
+  // manual config needed.
+  if (isPhysicalDevice && hostUri) {
     const lanIp = hostUri.split(':')[0];
     return `http://${lanIp}:4000/api`;
   }
 
+  // A STANDALONE build (installed APK, not Expo Go) on a real phone
+  // has NO dev-server connection to read a LAN IP from — hostUri is
+  // always empty here. Previously this case fell through to the
+  // emulator-only 10.0.2.2 alias, which doesn't mean anything on a
+  // real device and just hangs forever (the "stuck on loading" bug).
+  if (isPhysicalDevice) {
+    if (MANUAL_LAN_IP_FOR_PHYSICAL_DEVICE_TESTING) {
+      return `http://${MANUAL_LAN_IP_FOR_PHYSICAL_DEVICE_TESTING}:4000/api`;
+    }
+    console.warn('[wardrobeApi] Running a standalone build on a real device with no MANUAL_LAN_IP_FOR_PHYSICAL_DEVICE_TESTING set and no dev-server connection — API calls will fail. Fill in that constant, or point this at a deployed backend URL.');
+  }
+
+  // Emulator/simulator only from here on — 10.0.2.2 is Android
+  // emulator's real alias for "the host machine"; iOS
+  // simulator/web run ON the host machine directly, so localhost
+  // reaches it fine.
   return Platform.select({
     android: 'http://10.0.2.2:4000/api',
     ios: 'http://localhost:4000/api',
