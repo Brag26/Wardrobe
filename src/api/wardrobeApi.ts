@@ -85,7 +85,15 @@ function resolveApiBaseUrl(): string {
 
 export const API_BASE_URL = resolveApiBaseUrl();
 const TOKEN_KEY = 'wardrobe_auth_token';
-const REQUEST_TIMEOUT_MS = 15_000;
+// Render's free tier spins the backend down after a period of
+// inactivity — the FIRST request after idle can take 30-60+ seconds
+// while it wakes back up, well past a "normal" API response time.
+// 15s was fine for a locally-running backend that's always instantly
+// available, but times out before Render even finishes cold-starting.
+// 45s tolerates a cold start; once warm, real responses still return
+// in a second or two either way, so this doesn't make normal usage
+// feel slower.
+const REQUEST_TIMEOUT_MS = 45_000;
 
 export async function getStoredToken(): Promise<string | null> {
   return AsyncStorage.getItem(TOKEN_KEY);
