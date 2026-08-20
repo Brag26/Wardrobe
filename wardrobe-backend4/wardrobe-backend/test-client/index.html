@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Wardrobe Backend — Test Client</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e222b;
+    --border: #2a2f3a;
+    --text: #e8eaed;
+    --muted: #8a90a0;
+    --accent: #5b8def;
+    --accent-2: #38b26f;
+    --danger: #e5534b;
+    --warn: #d9a13a;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--sans); font-size: 14px; line-height: 1.5;
+  }
+  header {
+    padding: 16px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; background: var(--bg); z-index: 10;
+  }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+  header .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  #authStatus { font-size: 12px; padding: 6px 10px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--border); }
+  #authStatus.on { color: var(--accent-2); border-color: var(--accent-2); }
+  #authStatus.off { color: var(--muted); }
+
+  .layout { display: grid; grid-template-columns: 200px 1fr; min-height: calc(100vh - 57px); }
+  nav {
+    border-right: 1px solid var(--border); padding: 16px 8px;
+    display: flex; flex-direction: column; gap: 2px; height: fit-content; position: sticky; top: 57px;
+  }
+  nav button {
+    all: unset; cursor: pointer; padding: 9px 12px; border-radius: 6px;
+    color: var(--muted); font-size: 13px;
+  }
+  nav button:hover { background: var(--panel-2); color: var(--text); }
+  nav button.active { background: var(--accent); color: white; }
+
+  main { padding: 24px; max-width: 900px; }
+  section { display: none; }
+  section.active { display: block; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px; margin-bottom: 16px;
+  }
+  .card h2 { font-size: 14px; margin: 0 0 4px; }
+  .card .desc { color: var(--muted); font-size: 12px; margin-bottom: 14px; }
+
+  label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  input, select, textarea {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 6px; padding: 8px 10px; font-size: 13px; font-family: var(--sans);
+  }
+  textarea { min-height: 60px; font-family: var(--mono); font-size: 12px; }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+
+  button.btn {
+    all: unset; cursor: pointer; background: var(--accent); color: white;
+    padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 500;
+    margin-top: 12px; display: inline-block;
+  }
+  button.btn:hover { filter: brightness(1.1); }
+  button.btn.secondary { background: var(--panel-2); border: 1px solid var(--border); color: var(--text); }
+  button.btn.danger { background: var(--danger); }
+  button.btn.small { padding: 5px 10px; font-size: 12px; margin-top: 0; }
+  button.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .out {
+    margin-top: 12px; background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px 12px; font-family: var(--mono); font-size: 12px;
+    white-space: pre-wrap; word-break: break-word; max-height: 300px; overflow: auto; color: #a8d8ff;
+  }
+  .out.error { color: var(--danger); }
+  .out.empty { color: var(--muted); font-style: italic; }
+
+  .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 10px; }
+  .item-card {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px; font-size: 12px;
+  }
+  .item-card .swatch { width: 100%; height: 60px; border-radius: 6px; margin-bottom: 8px; }
+  .item-card b { display: block; text-transform: capitalize; }
+  .item-card .meta { color: var(--muted); margin-top: 2px; }
+  .item-card .tags { margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap; }
+  .tag { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 10px; color: var(--muted); }
+  .item-card .actions { display: flex; gap: 6px; margin-top: 8px; }
+
+  .stat-row { display: flex; gap: 12px; }
+  .stat { flex: 1; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; text-align: center; }
+  .stat .num { font-size: 24px; font-weight: 700; }
+  .stat .label { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+  .badge.done { background: rgba(56,178,111,0.15); color: var(--accent-2); }
+  .badge.failed { background: rgba(229,83,75,0.15); color: var(--danger); }
+  .badge.pending, .badge.processing { background: rgba(217,161,58,0.15); color: var(--warn); }
+
+  .chat-log { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; margin-bottom: 10px; }
+  .msg { padding: 8px 12px; border-radius: 8px; max-width: 80%; font-size: 13px; }
+  .msg.user { align-self: flex-end; background: var(--accent); color: white; }
+  .msg.assistant { align-self: flex-start; background: var(--panel-2); border: 1px solid var(--border); }
+
+  .hint { font-size: 11px; color: var(--muted); margin-top: 8px; }
+  code { background: var(--panel-2); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); font-size: 11px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Wardrobe Backend — Test Client</h1>
+    <div class="sub">Not the final app design — a click-through harness for testing the API</div>
+  </div>
+  <div id="authStatus" class="off">Not signed in</div>
+</header>
+
+<div class="layout">
+  <nav id="nav">
+    <button data-tab="auth" class="active">Auth</button>
+    <button data-tab="home">Home</button>
+    <button data-tab="closet">Closet</button>
+    <button data-tab="outfits">Outfits</button>
+    <button data-tab="ara">Ara Styling</button>
+    <button data-tab="chat">Chat</button>
+  </nav>
+
+  <main>
+
+    <!-- ===== AUTH ===== -->
+    <section id="tab-auth" class="active">
+      <div class="card">
+        <h2>Server connection</h2>
+        <div class="desc">Points at your local backend. Change if it's running elsewhere.</div>
+        <label>API base URL</label>
+        <input id="apiBase" value="http://localhost:4000/api">
+        <button class="btn secondary" onclick="checkHealth()">Check /health</button>
+        <div id="healthOut" class="out empty">Not checked yet</div>
+      </div>
+
+      <div class="card">
+        <h2>1. Request OTP</h2>
+        <div class="desc">Uses E.164 format, e.g. <code>+919876543210</code>. Code prints in your server's terminal (SEND_REAL_SMS=false).</div>
+        <label>Phone number</label>
+        <input id="otpPhone" value="+919876543210">
+        <button class="btn" onclick="requestOtp()">Send OTP</button>
+        <div id="otpRequestOut" class="out empty">—</div>
+      </div>
+
+      <div class="card">
+        <h2>2. Verify OTP</h2>
+        <label>Code (from your server terminal)</label>
+        <input id="otpCode" placeholder="482913">
+        <button class="btn" onclick="verifyOtp()">Verify &amp; Sign In</button>
+        <div id="otpVerifyOut" class="out empty">—</div>
+      </div>
+    </section>
+
+    <!-- ===== HOME ===== -->
+    <section id="tab-home">
+      <div class="card">
+        <h2>Closet Overview</h2>
+        <button class="btn secondary small" onclick="loadOverview()">Refresh</button>
+        <div id="overviewStats" class="stat-row" style="margin-top:12px;">
+          <div class="stat"><div class="num" id="statItems">–</div><div class="label">Items</div></div>
+          <div class="stat"><div class="num" id="statOutfits">–</div><div class="label">Outfits</div></div>
+          <div class="stat"><div class="num" id="statFavorites">–</div><div class="label">Favorites</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Today's Pick by Ara</h2>
+        <div class="desc">Cached once per day — calling this twice in a row returns the identical pick.</div>
+        <button class="btn" onclick="loadDailyPick()">Get Today's Pick</button>
+        <div id="dailyPickOut" class="out empty">—</div>
+      </div>
+
+      <div class="card">
+        <h2>Expense by Category</h2>
+        <button class="btn secondary small" onclick="loadExpenses()">Load</button>
+        <div id="expensesOut" class="out empty">—</div>
+      </div>
+    </section>
+
+    <!-- ===== CLOSET ===== -->
+    <section id="tab-closet">
+      <div class="card">
+        <h2>Add an item</h2>
+        <div class="desc">No real photo needed for testing — this generates a placeholder image slot via the presigned-URL flow and saves metadata straight to Mongo.</div>
+        <div class="row">
+          <div>
+            <label>Category</label>
+            <input id="itemCategory" value="top">
+          </div>
+          <div>
+            <label>Color</label>
+            <input id="itemColor" value="black">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Brand</label>
+            <input id="itemBrand" value="H&M">
+          </div>
+          <div>
+            <label>Price</label>
+            <input id="itemPrice" type="number" value="1200">
+          </div>
+        </div>
+        <label>Occasion tags (comma separated)</label>
+        <input id="itemOccasions" value="date,coffee">
+        <button class="btn" onclick="addItem()">Add to Closet</button>
+        <div id="addItemOut" class="out empty">—</div>
+      </div>
+
+      <div class="card">
+        <h2>Your items</h2>
+        <button class="btn secondary small" onclick="loadItems()">Refresh</button>
+        <div id="itemsGrid" class="item-grid"></div>
+      </div>
+
+      <div class="card">
+        <h2>Attribute suggestions</h2>
+        <div class="desc">No locked vocabulary — this merges seed values with whatever you've actually used.</div>
+        <button class="btn secondary small" onclick="loadSuggestions()">Load</button>
+        <div id="suggestionsOut" class="out empty">—</div>
+      </div>
+    </section>
+
+    <!-- ===== OUTFITS ===== -->
+    <section id="tab-outfits">
+      <div class="card">
+        <h2>Create an outfit</h2>
+        <div class="desc">Pick items from your closet (click item IDs below after loading them in the Closet tab), or paste manually.</div>
+        <label>Name</label>
+        <input id="outfitName" value="Weekend Look">
+        <label>Item IDs (comma separated)</label>
+        <input id="outfitItemIds" placeholder="itemId1,itemId2">
+        <div class="row">
+          <div>
+            <label>Category</label>
+            <input id="outfitCategory" value="casual">
+          </div>
+          <div>
+            <label>Price</label>
+            <input id="outfitPrice" type="number" value="3500">
+          </div>
+        </div>
+        <button class="btn" onclick="createOutfit()">Create Outfit</button>
+        <div id="createOutfitOut" class="out empty">—</div>
+      </div>
+
+      <div class="card">
+        <h2>Outfit categories (My Outfits tabs)</h2>
+        <button class="btn secondary small" onclick="loadOutfitCategories()">Load</button>
+        <div id="outfitCategoriesOut" class="out empty">—</div>
+      </div>
+
+      <div class="card">
+        <h2>Your outfits</h2>
+        <button class="btn secondary small" onclick="loadOutfits()">Refresh</button>
+        <div id="outfitsOut" class="out empty">—</div>
+      </div>
+    </section>
+
+    <!-- ===== ARA STYLING ===== -->
+    <section id="tab-ara">
+      <div class="card">
+        <h2>Start a styling session</h2>
+        <div class="desc">The S2 → S3 → S4 → S6 flow: pick occasion + mood, Ara builds an outfit from your closet.</div>
+        <div class="row">
+          <div>
+            <label>Occasion</label>
+            <select id="sessionOccasion">
+              <option value="date">date</option>
+              <option value="office">office</option>
+              <option value="party">party</option>
+              <option value="coffee">coffee</option>
+              <option value="wedding">wedding</option>
+              <option value="travel">travel</option>
+            </select>
+          </div>
+          <div>
+            <label>Mood</label>
+            <select id="sessionMood">
+              <option value="confident">confident</option>
+              <option value="romantic">romantic</option>
+              <option value="elegant">elegant</option>
+              <option value="playful">playful</option>
+              <option value="calm">calm</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn" onclick="startAndGenerate()">Start &amp; Generate Outfit</button>
+        <div id="sessionOut" class="out empty">—</div>
+      </div>
+
+      <div class="card">
+        <h2>Discover looks</h2>
+        <div class="row">
+          <button class="btn secondary" onclick="discover('all')">All</button>
+          <button class="btn secondary" onclick="discover('casual')">Casual</button>
+          <button class="btn secondary" onclick="discover('date_night')">Date Night</button>
+          <button class="btn secondary" onclick="discover('work')">Work</button>
+        </div>
+        <div id="discoverOut" class="out empty">—</div>
+      </div>
+
+      <div class="card">
+        <h2>Shuffle</h2>
+        <button class="btn" onclick="shuffle()">Shuffle a look</button>
+        <div id="shuffleOut" class="out empty">—</div>
+      </div>
+    </section>
+
+    <!-- ===== CHAT ===== -->
+    <section id="tab-chat">
+      <div class="card">
+        <h2>Chat with Ara</h2>
+        <div id="chatLog" class="chat-log"></div>
+        <div class="row">
+          <input id="chatInput" placeholder="What should I wear today?">
+          <button class="btn" style="flex:0 0 auto;" onclick="sendChat()">Send</button>
+        </div>
+        <button class="btn secondary small" style="margin-top:10px;" onclick="loadChatHistory()">Load history</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+let TOKEN = localStorage.getItem('wardrobe_test_token') || null;
+let ITEMS_CACHE = [];
+
+function apiBase() { return document.getElementById('apiBase').value.replace(/\/$/, ''); }
+
+function updateAuthStatus() {
+  const el = document.getElementById('authStatus');
+  if (TOKEN) { el.textContent = 'Signed in'; el.className = 'on'; }
+  else { el.textContent = 'Not signed in'; el.className = 'off'; }
+}
+updateAuthStatus();
+
+async function api(path, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  if (TOKEN) headers['Authorization'] = `Bearer ${TOKEN}`;
+  const res = await fetch(apiBase() + path, { ...options, headers });
+  const text = await res.text();
+  let json;
+  try { json = JSON.parse(text); } catch { json = text; }
+  if (!res.ok) {
+    const err = new Error((json && json.error) || `HTTP ${res.status}`);
+    err.status = res.status; err.body = json;
+    throw err;
+  }
+  return json;
+}
+
+function show(id, data, isError = false) {
+  const el = document.getElementById(id);
+  el.className = 'out' + (isError ? ' error' : '');
+  el.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+}
+
+// ---------- Navigation ----------
+document.getElementById('nav').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-tab]');
+  if (!btn) return;
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('main section').forEach(s => s.classList.remove('active'));
+  document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+});
+
+// ---------- Auth ----------
+async function checkHealth() {
+  try {
+    const res = await fetch(apiBase().replace(/\/api$/, '') + '/health');
+    show('healthOut', await res.json());
+  } catch (e) { show('healthOut', e.message, true); }
+}
+
+async function requestOtp() {
+  try {
+    const phone = document.getElementById('otpPhone').value;
+    const data = await api('/auth/request-otp', { method: 'POST', body: JSON.stringify({ phone }) });
+    show('otpRequestOut', { ...data, note: 'Check your server terminal for the printed code.' });
+  } catch (e) { show('otpRequestOut', e.body || e.message, true); }
+}
+
+async function verifyOtp() {
+  try {
+    const phone = document.getElementById('otpPhone').value;
+    const code = document.getElementById('otpCode').value;
+    const data = await api('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ phone, code }) });
+    TOKEN = data.token;
+    localStorage.setItem('wardrobe_test_token', TOKEN);
+    updateAuthStatus();
+    show('otpVerifyOut', data);
+  } catch (e) { show('otpVerifyOut', e.body || e.message, true); }
+}
+
+// ---------- Home ----------
+async function loadOverview() {
+  try {
+    const data = await api('/closet/overview');
+    document.getElementById('statItems').textContent = data.totalItems;
+    document.getElementById('statOutfits').textContent = data.totalOutfits;
+    document.getElementById('statFavorites').textContent = data.totalFavorites;
+  } catch (e) { alert(e.message); }
+}
+
+async function loadDailyPick() {
+  try { show('dailyPickOut', await api('/looks/daily-pick')); }
+  catch (e) { show('dailyPickOut', e.body || e.message, true); }
+}
+
+async function loadExpenses() {
+  try { show('expensesOut', await api('/closet/expenses')); }
+  catch (e) { show('expensesOut', e.body || e.message, true); }
+}
+
+// ---------- Closet ----------
+const SWATCH = { black:'#2a2a2a', white:'#eee', cream:'#f0e6d2', red:'#b83b3b', pink:'#e8a0b8',
+  navy:'#1f2d50', green:'#3f6b3f', blue:'#3a5fa0', beige:'#d8c7a8', grey:'#8a8a8a', brown:'#6b4a30' };
+
+async function addItem() {
+  try {
+    const up = await api('/wardrobe/upload-url', { method: 'POST', body: JSON.stringify({ fileExtension: 'jpg' }) });
+    const occasionTags = document.getElementById('itemOccasions').value.split(',').map(s => s.trim()).filter(Boolean);
+    const payload = {
+      itemId: up.itemId, s3Key: up.key,
+      category: document.getElementById('itemCategory').value,
+      color: document.getElementById('itemColor').value,
+      brand: document.getElementById('itemBrand').value,
+      price: Number(document.getElementById('itemPrice').value) || null,
+      occasionTags,
+    };
+    const saved = await api('/wardrobe/items', { method: 'POST', body: JSON.stringify(payload) });
+    show('addItemOut', saved);
+    loadItems();
+  } catch (e) { show('addItemOut', e.body || e.message, true); }
+}
+
+async function loadItems() {
+  try {
+    const items = await api('/wardrobe/items');
+    ITEMS_CACHE = items;
+    const grid = document.getElementById('itemsGrid');
+    grid.innerHTML = '';
+    items.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'item-card';
+      const color = SWATCH[item.color] || '#555';
+      div.innerHTML = `
+        <div class="swatch" style="background:${color}"></div>
+        <b>${item.color} ${item.category}</b>
+        <div class="meta">${item.brand || 'no brand'} ${item.price ? '· ₹' + item.price : ''}</div>
+        <div class="meta">worn ${item.wearCount}× <span class="badge ${item.backgroundRemoval.status}">${item.backgroundRemoval.status}</span></div>
+        <div class="tags">${(item.occasionTags||[]).map(t => `<span class="tag">${t}</span>`).join('')}</div>
+        <div class="meta" style="margin-top:6px; word-break:break-all;">id: ${item.id}</div>
+        <div class="actions">
+          <button class="btn small secondary" onclick="toggleFav('${item.id}', ${!item.isFavorite})">${item.isFavorite ? '♥ unfav' : '♡ fav'}</button>
+          <button class="btn small danger" onclick="binItem('${item.id}')">bin</button>
+        </div>`;
+      grid.appendChild(div);
+    });
+  } catch (e) { alert(e.message); }
+}
+
+async function toggleFav(id, isFavorite) {
+  await api(`/wardrobe/items/${id}/favorite`, { method: 'POST', body: JSON.stringify({ isFavorite }) });
+  loadItems();
+}
+async function binItem(id) {
+  await api(`/wardrobe/items/${id}`, { method: 'DELETE' });
+  loadItems();
+}
+
+async function loadSuggestions() {
+  try { show('suggestionsOut', await api('/wardrobe/items/attribute-suggestions')); }
+  catch (e) { show('suggestionsOut', e.body || e.message, true); }
+}
+
+// ---------- Outfits ----------
+async function createOutfit() {
+  try {
+    const ids = document.getElementById('outfitItemIds').value.split(',').map(s => s.trim()).filter(Boolean);
+    const payload = {
+      name: document.getElementById('outfitName').value,
+      itemIdsBySlot: { tops: ids, pants: [], shoes: [], bags: [], other: [] },
+      category: document.getElementById('outfitCategory').value,
+      price: Number(document.getElementById('outfitPrice').value) || null,
+    };
+    show('createOutfitOut', await api('/outfits', { method: 'POST', body: JSON.stringify(payload) }));
+    loadOutfits();
+  } catch (e) { show('createOutfitOut', e.body || e.message, true); }
+}
+
+async function loadOutfitCategories() {
+  try { show('outfitCategoriesOut', await api('/outfits/categories')); }
+  catch (e) { show('outfitCategoriesOut', e.body || e.message, true); }
+}
+
+async function loadOutfits() {
+  try { show('outfitsOut', await api('/outfits')); }
+  catch (e) { show('outfitsOut', e.body || e.message, true); }
+}
+
+// ---------- Ara styling ----------
+async function startAndGenerate() {
+  try {
+    const occasion = document.getElementById('sessionOccasion').value;
+    const mood = document.getElementById('sessionMood').value;
+    const session = await api('/styling-sessions', { method: 'POST', body: JSON.stringify({ occasion, mood }) });
+    const result = await api(`/styling-sessions/${session.id}/generate`, { method: 'POST' });
+    show('sessionOut', result);
+  } catch (e) { show('sessionOut', e.body || e.message, true); }
+}
+
+async function discover(category) {
+  try { show('discoverOut', await api(`/looks/discover?category=${category}`)); }
+  catch (e) { show('discoverOut', e.body || e.message, true); }
+}
+
+async function shuffle() {
+  try { show('shuffleOut', await api('/looks/shuffle', { method: 'POST', body: JSON.stringify({}) })); }
+  catch (e) { show('shuffleOut', e.body || e.message, true); }
+}
+
+// ---------- Chat ----------
+function renderChat(messages) {
+  const log = document.getElementById('chatLog');
+  log.innerHTML = messages.map(m => `<div class="msg ${m.role}">${m.text}</div>`).join('');
+  log.scrollTop = log.scrollHeight;
+}
+
+async function loadChatHistory() {
+  try { renderChat(await api('/chat/history')); }
+  catch (e) { alert(e.message); }
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  try {
+    await api('/chat/message', { method: 'POST', body: JSON.stringify({ text }) });
+    loadChatHistory();
+  } catch (e) { alert(e.message); }
+}
+
+// Auto-check health on load
+checkHealth();
+</script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+# infra/serverless.yml
+# Serverless Framework config — REPLACES: EC2 (t3.micro), PM2, Nginx
+# reverse proxy, Let's Encrypt/certbot, and the Elastic IP + A-record DNS
+# setup. API Gateway becomes the HTTPS entry point.
+#
+# Deploy: npm install -g serverless && npm run deploy
+# (needs AWS credentials configured locally, e.g. via `aws configure`)
+
+service: ai-wardrobe-backend
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ${opt:region, 'ap-south-1'}   # AWS Account 720374066183, Mumbai
+  stage: ${opt:stage, 'dev'}
+  memorySize: 512
+  timeout: 15
+  environment:
+    MONGODB_URI: ${env:MONGODB_URI}
+    JWT_SECRET_ARN: ${env:JWT_SECRET_ARN}   # JWT secret lives in AWS Secrets Manager, not a plain env var
+    JWT_EXPIRES_IN: ${env:JWT_EXPIRES_IN, '30d'}
+    AWS_S3_BUCKET: ${env:AWS_S3_BUCKET, 'superbae-media'}
+    AWS_BACKUP_BUCKET: ${env:AWS_BACKUP_BUCKET, ${env:AWS_S3_BUCKET, 'superbae-media'}}
+    BG_REMOVAL_PROVIDER: ${env:BG_REMOVAL_PROVIDER, 'removebg'}
+    BG_REMOVAL_API_KEY: ${env:BG_REMOVAL_API_KEY, ''}
+    AI_PROVIDER_API_KEY: ${env:AI_PROVIDER_API_KEY, ''}
+    AI_PROVIDER_BASE_URL: ${env:AI_PROVIDER_BASE_URL, 'https://integrate.api.nvidia.com/v1'}
+    AI_PROVIDER_MODEL: ${env:AI_PROVIDER_MODEL, 'z-ai/glm-5.2'}
+    SEND_REAL_SMS: ${env:SEND_REAL_SMS, 'false'}
+    SENTRY_DSN: ${env:SENTRY_DSN, ''}
+  iam:
+    role:
+      statements:
+        # S3 — wardrobe photo bucket (presigned uploads + background removal)
+        - Effect: Allow
+          Action: [s3:PutObject, s3:GetObject, s3:DeleteObject, s3:CopyObject]
+          Resource:
+            - 'arn:aws:s3:::${env:AWS_S3_BUCKET, "superbae-media"}/*'
+        # S3 — backup bucket (nightly Mongo export)
+        - Effect: Allow
+          Action: [s3:PutObject]
+          Resource:
+            - 'arn:aws:s3:::${env:AWS_BACKUP_BUCKET, env:AWS_S3_BUCKET, "superbae-media"}/backups/*'
+        # SNS — OTP SMS
+        - Effect: Allow
+          Action: [sns:Publish]
+          Resource: '*' # SNS SMS publish doesn't support resource-level ARN restriction
+        # Secrets Manager — JWT secret
+        - Effect: Allow
+          Action: [secretsmanager:GetSecretValue]
+          Resource: ${env:JWT_SECRET_ARN}
+
+functions:
+  # API entry point — replaces Nginx + the EC2 Express process entirely.
+  api:
+    handler: src/lambda.handler
+    events:
+      - httpApi: '*'
+
+  # Nightly mongodump-equivalent -> S3 backup (replaces node-cron on EC2)
+  backup:
+    handler: src/backup.lambda.handler
+    timeout: 60
+    events:
+      - schedule: cron(0 2 * * ? *) # 2 AM UTC nightly
+
+  # Bin retention: 30 days (confirmed with the team) — permanently
+  # deletes anything sitting in the Bin longer than 30 days, daily.
+  binCleanup:
+    handler: src/binCleanup.lambda.handler
+    timeout: 60
+    events:
+      - schedule: cron(0 3 * * ? *) # 3 AM UTC nightly, after the backup job
+
+package:
+  patterns:
+    - '!node_modules/.cache/**'
+    - '!*.test.ts'
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node20
+
+plugins:
+  - serverless-esbuild
