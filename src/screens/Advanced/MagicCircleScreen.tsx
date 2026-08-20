@@ -13,12 +13,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { ItemThumb } from '../../components/ItemThumb';
 import { getWardrobeItems } from '../../api/wardrobeApi';
-import { colors, spacing, type } from '../../theme/theme';
+import { spacing } from '../../theme/theme';
+import { useAppTheme } from '../../theme/ThemeContext';
 
 const { width } = Dimensions.get('window');
 const RADIUS = Math.min(width * 0.35, 130);
 
 export default function MagicCircleScreen() {
+  const { colors, type } = useAppTheme();
+  const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<any[]>([]);
   const rotation = useRef(new Animated.Value(0)).current;
@@ -72,7 +75,8 @@ export default function MagicCircleScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, type: any) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.black },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   hint: { color: colors.white, fontSize: 16, fontWeight: '600', marginBottom: spacing.xl },
@@ -84,4 +88,5 @@ const styles = StyleSheet.create({
   },
   centerText: { color: colors.white, fontSize: 11, textAlign: 'center', fontWeight: '600' },
   empty: { color: '#999', marginTop: spacing.lg },
-});
+  });
+}

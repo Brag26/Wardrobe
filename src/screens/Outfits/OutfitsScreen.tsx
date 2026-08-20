@@ -7,11 +7,14 @@ import { FigmaIcon } from '../../components/icons/FigmaIcon';
 import { listOutfits, getOutfitCategories, getItemsByIds, deleteOutfit, updateOutfit, listPackings, getAttributeSuggestions } from '../../api/wardrobeApi';
 import { ItemThumb } from '../../components/ItemThumb';
 import { FilterPanel, FilterValues } from '../../components/FilterPanel';
-import { colors, spacing, type, radius } from '../../theme/theme';
+import { spacing, radius } from '../../theme/theme';
+import { useAppTheme } from '../../theme/ThemeContext';
 
 const SEASONS = ['summer', 'autumn', 'winter', 'monsoon', 'spring', 'all_season'];
 
 export default function OutfitsScreen() {
+  const { colors, type } = useAppTheme();
+  const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
   const navigation = useNavigation<any>();
   const [outfits, setOutfits] = useState<any[]>([]);
   const [previews, setPreviews] = useState<Record<string, any>>({});
@@ -188,8 +191,18 @@ export default function OutfitsScreen() {
           const pieces = (item.itemIds ?? []).map((id: string) => previews[id]).filter(Boolean);
           const shown = pieces.slice(0, 4);
           const overflow = pieces.length - shown.length;
+          // Backend already sorts newest-first, so the actual gap was
+          // purely visual — nothing distinguished an outfit you made 5
+          // minutes ago from one made weeks back except its position in
+          // the list. A small "New" badge for anything created in the
+          // last 48 hours makes recency actually visible, not just
+          // implied by scroll position.
+          const isRecent = item.createdAt && (Date.now() - item.createdAt) < 48 * 60 * 60 * 1000;
           return (
             <View style={styles.card}>
+              {isRecent && (
+                <View style={styles.newBadge}><Text style={styles.newBadgeText}>NEW</Text></View>
+              )}
               <TouchableOpacity
                 style={styles.shareButton}
                 onPress={() => handleShare(item)}
@@ -296,7 +309,8 @@ export default function OutfitsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, type: any) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   title: { ...type.h1 },
@@ -332,6 +346,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
   },
   deleteButtonText: { color: colors.white, fontSize: 13, fontWeight: '700', lineHeight: 14 },
+  newBadge: {
+    position: 'absolute', top: 6, right: 40, zIndex: 3, backgroundColor: colors.lavenderDeep ?? '#7C6BAF',
+    borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 3,
+  },
+  newBadgeText: { color: colors.white, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
   shareButton: {
     position: 'absolute', top: 6, left: 6, zIndex: 2, width: 26, height: 26, borderRadius: 13,
     backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
@@ -363,4 +382,5 @@ const styles = StyleSheet.create({
   modalCancelText: { color: colors.inkMuted, fontWeight: '600', fontSize: 13 },
   modalSave: { backgroundColor: colors.black, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: spacing.md },
   modalSaveText: { color: colors.white, fontWeight: '600', fontSize: 13 },
-});
+  });
+}

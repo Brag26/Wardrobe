@@ -10,7 +10,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { FigmaIcon } from './icons/FigmaIcon';
 import { TagPill } from './TagPill';
-import { spacing, radius } from '../theme/theme';
+import { spacing, radius, COLOR_SWATCHES } from '../theme/theme';
 import { useAppTheme } from '../theme/ThemeContext';
 
 export interface ItemFormValues {
@@ -44,11 +44,6 @@ interface ItemDetailsFormProps {
 }
 
 const OCCASIONS = ['office', 'coffee', 'date', 'party', 'wedding', 'travel', 'brunch', 'beach', 'event'];
-const COLOR_SWATCHES: Record<string, string> = {
-  black: '#222', white: '#eee', cream: '#efe6d3', grey: '#999', beige: '#d8c7a8',
-  red: '#b13c3c', pink: '#e8a0b8', navy: '#213258', green: '#3f6b3f', blue: '#3a5fa0', brown: '#6b4a30',
-  orange: '#d97b3f', yellow: '#e5c15c', purple: '#8a5fbf', burgundy: '#6b2f3a', olive: '#6b6b3a',
-};
 
 // Category picker grouping — with ~150 possible categories, a flat
 // wrapped wall of pills before anyone types a search term looks

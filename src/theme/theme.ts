@@ -96,3 +96,24 @@ export function buildChipPastels(c: typeof lightColors) {
   return [c.pink, c.lavender, c.peach, c.mint, c.sky, c.pink, c.lavender, c.peach, c.mint];
 }
 export const chipPastels = buildChipPastels(lightColors);
+
+// Single shared source of truth for color-name -> swatch hex, covering
+// every color in the backend's SUGGESTED_COLORS list (server/src/types/
+// domain.ts). Previously ItemDetailsForm.tsx and FilterPanel.tsx each
+// kept their OWN separate, incomplete copy of this map — 15-16 colors
+// each, missing 8+ real colors (mint, teal, sage, lavender, tan,
+// turquoise, chocolate, multicolor) that the backend actually suggests.
+// Those showed up as plain text with no colored dot at all — not a
+// rendering bug, just genuinely missing entries. One complete map now,
+// imported everywhere a color swatch is shown, so it can't drift out
+// of sync with the backend's real list again.
+export const COLOR_SWATCHES: Record<string, string> = {
+  black: '#222222', white: '#f0f0f0', cream: '#efe6d3', grey: '#999999', beige: '#d8c7a8',
+  red: '#b13c3c', pink: '#e8a0b8', navy: '#213258', green: '#3f6b3f', mint: '#a8d5ba',
+  blue: '#3a5fa0', orange: '#d97b3f', teal: '#2f7d7d', yellow: '#e5c15c', purple: '#8a5fbf',
+  sage: '#9caf88', lavender: '#c3b1e1', brown: '#6b4a30', olive: '#6b6b3a', burgundy: '#6b2f3a',
+  tan: '#c8a97e', turquoise: '#30bfbf', chocolate: '#4a2f1f',
+  // "multicolor" has no single representative hex by definition — a
+  // small gradient-ish mid-tone stands in rather than leaving it blank.
+  multicolor: '#a37fb0',
+};

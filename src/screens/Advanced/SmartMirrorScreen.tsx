@@ -14,9 +14,12 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { ItemThumb } from '../../components/ItemThumb';
 import { getWardrobeItems } from '../../api/wardrobeApi';
-import { colors, spacing, type } from '../../theme/theme';
+import { spacing } from '../../theme/theme';
+import { useAppTheme } from '../../theme/ThemeContext';
 
 export default function SmartMirrorScreen() {
+  const { colors, type } = useAppTheme();
+  const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
   const [permission, requestPermission] = useCameraPermissions();
   const [items, setItems] = useState<any[]>([]);
   const [activeItem, setActiveItem] = useState<any>(null);
@@ -77,7 +80,8 @@ export default function SmartMirrorScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, type: any) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.black },
   overlay: { flex: 1, justifyContent: 'space-between' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
@@ -87,4 +91,5 @@ const styles = StyleSheet.create({
   draggableItem: { position: 'absolute', top: '35%', alignSelf: 'center' },
   itemPicker: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, paddingBottom: spacing.sm },
   hint: { color: '#eee', textAlign: 'center', fontSize: 11, paddingBottom: spacing.md },
-});
+  });
+}

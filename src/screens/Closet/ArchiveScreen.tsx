@@ -11,9 +11,12 @@ import { getArchivedItems, unarchiveWardrobeItem, moveItemToBin } from '../../ap
 import { ItemThumb } from '../../components/ItemThumb';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { FigmaIcon } from '../../components/icons/FigmaIcon';
-import { colors, spacing, type, radius } from '../../theme/theme';
+import { spacing, radius } from '../../theme/theme';
+import { useAppTheme } from '../../theme/ThemeContext';
 
 export default function ArchiveScreen() {
+  const { colors, type } = useAppTheme();
+  const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
   const navigation = useNavigation<any>();
   const [items, setItems] = useState<any[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -103,7 +106,8 @@ export default function ArchiveScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, type: any) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   subtitle: { ...type.muted, paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
   note: { ...type.body, color: colors.success, fontWeight: '600', paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
@@ -124,4 +128,5 @@ const styles = StyleSheet.create({
   deleteBtnText: { color: colors.danger, fontWeight: '600' },
   unarchiveBtn: { backgroundColor: colors.black },
   unarchiveBtnText: { color: colors.white, fontWeight: '600' },
-});
+  });
+}

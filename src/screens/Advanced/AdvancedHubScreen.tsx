@@ -9,7 +9,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '../../components/ScreenHeader';
-import { colors, spacing, type, radius } from '../../theme/theme';
+import { spacing, radius } from '../../theme/theme';
+import { useAppTheme } from '../../theme/ThemeContext';
 
 const FEATURES = [
   { key: 'WeatherAdapt', title: 'Weather AI Adaptation', desc: 'Real live weather → seasonal closet suggestions', icon: 'partly-sunny-outline' as const },
@@ -23,6 +24,8 @@ const FEATURES = [
 ];
 
 export default function AdvancedHubScreen() {
+  const { colors, type } = useAppTheme();
+  const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
   const navigation = useNavigation<any>();
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -43,11 +46,13 @@ export default function AdvancedHubScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, type: any) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   subtitle: { ...type.muted, paddingHorizontal: spacing.lg, lineHeight: 16 },
   card: { flexDirection: 'row', backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.md, alignItems: 'center' },
   iconWrap: { width: 40, height: 40, borderRadius: radius.pill, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
   cardTitle: { ...type.h3 },
   cardDesc: { ...type.muted, marginTop: 2, lineHeight: 15 },
-});
+  });
+}

@@ -4,11 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { FigmaIcon } from '../../components/icons/FigmaIcon';
-import { getClosetOverview, getWardrobeItems, listOutfits, setItemFavorite, getItemsByIds } from '../../api/wardrobeApi';
+import { getClosetOverview, getWardrobeItems, listOutfits, setItemFavorite, getItemsByIds, getTodayOutfit } from '../../api/wardrobeApi';
 import { useAuthStore } from '../../store/authStore';
 import { ItemThumb } from '../../components/ItemThumb';
 import { AraMascot } from '../../components/AraMascot';
-import { spacing, radius } from '../../theme/theme';
+import { spacing, radius, COLOR_SWATCHES } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
 
 const OUTFIT_TABS = ['All', 'Casual', 'Formal', 'Business', 'Evening Wear'];
@@ -29,6 +29,45 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
   const fabAnim = React.useRef(new Animated.Value(0)).current;
+
+  // "Outfit of the Day" — single-tap generate/reveal on the banner
+  // below, with the banner's own background color set to match the
+  // outfit's dominant color once it's loaded (falls back to the
+  // default black banner before that, and if a color has no match in
+  // COLOR_SWATCHES for some reason).
+  const [todayOutfit, setTodayOutfit] = useState<any>(null);
+  const [todayItems, setTodayItems] = useState<any[]>([]);
+  const [ootdLoading, setOotdLoading] = useState(false);
+  const [ootdMessage, setOotdMessage] = useState<string | null>(null);
+
+  const loadTodayOutfit = async () => {
+    setOotdLoading(true);
+    setOotdMessage(null);
+    try {
+      const result = await getTodayOutfit();
+      if (result.outfit) {
+        setTodayOutfit(result.outfit);
+        setTodayItems(result.items ?? []);
+      } else {
+        setOotdMessage(result.message ?? "Couldn't generate an outfit right now.");
+      }
+    } catch (e: any) {
+      setOotdMessage("Couldn't load today's outfit — try again in a bit.");
+    } finally {
+      setOotdLoading(false);
+    }
+  };
+
+  // Dominant color = whichever color appears most often across the
+  // outfit's actual items — a simple, honest heuristic (not claiming
+  // deep color-theory analysis, just "what color shows up most").
+  const dominantColorHex = React.useMemo(() => {
+    if (todayItems.length === 0) return null;
+    const counts: Record<string, number> = {};
+    todayItems.forEach((i) => { if (i.color) counts[i.color] = (counts[i.color] ?? 0) + 1; });
+    const topColor = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+    return topColor ? COLOR_SWATCHES[topColor] ?? null : null;
+  }, [todayItems]);
 
   const toggleFab = () => {
     Animated.spring(fabAnim, { toValue: fabOpen ? 0 : 1, useNativeDriver: true, friction: 7 }).start();
@@ -145,6 +184,41 @@ export default function HomeScreen() {
           <View style={styles.araBannerPreview}>
             <AraMascot size={72} onDarkBackground />
           </View>
+        </TouchableOpacity>
+
+        {/* "Outfit of the Day" — single tap generates/reveals today's
+            pick (same one persists all day once generated, doesn't
+            re-roll on every tap). Background color matches whichever
+            color shows up most across the outfit's actual items,
+            falling back to the default dark banner before that's
+            loaded or if the color has no swatch match. */}
+        <TouchableOpacity
+          style={[styles.ootdBanner, dominantColorHex ? { backgroundColor: dominantColorHex } : null]}
+          activeOpacity={0.9}
+          onPress={() => (todayOutfit ? navigation.navigate('OutfitsTab', { screen: 'CreateOutfit', params: { editOutfitId: todayOutfit.id } }) : loadTodayOutfit())}
+          disabled={ootdLoading}
+        >
+          {ootdLoading ? (
+            <Text style={styles.ootdLoadingText}>Putting today's look together…</Text>
+          ) : todayOutfit ? (
+            <>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.ootdLabel}>OUTFIT OF THE DAY</Text>
+                <Text style={styles.ootdTitle} numberOfLines={1}>{todayOutfit.name ?? 'Today\'s pick'}</Text>
+                <Text style={styles.ootdSubtitle}>{todayItems.length} piece{todayItems.length === 1 ? '' : 's'} — tap to view in Outfits</Text>
+              </View>
+              <View style={styles.ootdPreviewRow}>
+                {todayItems.slice(0, 3).map((it, idx) => (
+                  <View key={it.id ?? idx} style={styles.ootdPreviewThumb}><ItemThumb item={it} size={52} /></View>
+                ))}
+              </View>
+            </>
+          ) : (
+            <View style={{ flex: 1 }}>
+              <Text style={styles.ootdLabel}>OUTFIT OF THE DAY</Text>
+              <Text style={styles.ootdTitle}>{ootdMessage ?? 'Tap to see what to wear today'}</Text>
+            </View>
+          )}
         </TouchableOpacity>
 
         <Text style={styles.sectionTitle}>Your Closet Overview</Text>
@@ -358,6 +432,17 @@ function makeStyles(colors: any, type: any) {
     araBannerButton: { backgroundColor: colors.white, borderRadius: radius.pill, alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: spacing.md },
     araBannerButtonText: { fontSize: 11, fontWeight: '700', color: colors.black },
     araBannerPreview: { borderRadius: radius.md, overflow: 'hidden' },
+    ootdBanner: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      backgroundColor: colors.black, borderRadius: radius.lg, padding: spacing.md,
+      marginHorizontal: spacing.lg, marginBottom: spacing.lg, minHeight: 76,
+    },
+    ootdLabel: { color: 'rgba(255,255,255,0.75)', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+    ootdTitle: { color: colors.white, fontSize: 15, fontWeight: '700', marginTop: 4 },
+    ootdSubtitle: { color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 2 },
+    ootdLoadingText: { color: colors.white, fontSize: 13, fontWeight: '600' },
+    ootdPreviewRow: { flexDirection: 'row' },
+    ootdPreviewThumb: { marginLeft: -10, borderRadius: radius.sm, overflow: 'hidden', borderWidth: 2, borderColor: colors.white },
     sectionTitle: { ...type.h2, paddingHorizontal: spacing.lg },
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: spacing.lg, marginTop: spacing.lg },
     viewAll: { fontSize: 11, color: colors.inkMuted, fontWeight: '600' },

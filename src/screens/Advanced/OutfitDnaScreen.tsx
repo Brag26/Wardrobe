@@ -9,7 +9,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { getOutfit, listOutfits, getWardrobeItems } from '../../api/wardrobeApi';
-import { colors, spacing, type, radius } from '../../theme/theme';
+import { spacing, radius } from '../../theme/theme';
+import { useAppTheme } from '../../theme/ThemeContext';
 
 function computeBreakdown(items: any[]) {
   if (items.length === 0) return { confidence: 0, comfort: 0, style: 0, balance: 0, trendiness: 0, overall: 0 };
@@ -32,7 +33,7 @@ function computeBreakdown(items: any[]) {
   return { confidence: c, comfort: co, style: s, balance: b, trendiness: t, overall };
 }
 
-function Bar({ label, value }: { label: string; value: number }) {
+function Bar({ label, value, styles }: { label: string; value: number; styles: any }) {
   return (
     <View style={styles.barRow}>
       <Text style={styles.barLabel}>{label}</Text>
@@ -43,6 +44,8 @@ function Bar({ label, value }: { label: string; value: number }) {
 }
 
 export default function OutfitDnaScreen() {
+  const { colors, type } = useAppTheme();
+  const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
   const route = useRoute<any>();
   const [loading, setLoading] = useState(true);
   const [breakdown, setBreakdown] = useState<any>(null);
@@ -88,11 +91,11 @@ export default function OutfitDnaScreen() {
           <Text style={styles.itemCountText}>Based on {itemCount} piece{itemCount === 1 ? '' : 's'}</Text>
 
           <View style={styles.card}>
-            <Bar label="Confidence" value={breakdown.confidence} />
-            <Bar label="Comfort" value={breakdown.comfort} />
-            <Bar label="Style" value={breakdown.style} />
-            <Bar label="Balance" value={breakdown.balance} />
-            <Bar label="Trendiness" value={breakdown.trendiness} />
+            <Bar label="Confidence" value={breakdown.confidence} styles={styles} />
+            <Bar label="Comfort" value={breakdown.comfort} styles={styles} />
+            <Bar label="Style" value={breakdown.style} styles={styles} />
+            <Bar label="Balance" value={breakdown.balance} styles={styles} />
+            <Bar label="Trendiness" value={breakdown.trendiness} styles={styles} />
           </View>
         </ScrollView>
       )}
@@ -100,7 +103,8 @@ export default function OutfitDnaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, type: any) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   overallCircle: {
     width: 140, height: 140, borderRadius: 70, borderWidth: 8, borderColor: colors.black,
@@ -115,4 +119,5 @@ const styles = StyleSheet.create({
   barTrack: { height: 8, borderRadius: 4, backgroundColor: colors.border, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: 4, backgroundColor: colors.black },
   barValue: { fontSize: 11, color: colors.inkMuted, marginTop: 2, textAlign: 'right' },
-});
+  });
+}

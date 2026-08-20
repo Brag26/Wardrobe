@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +34,7 @@ export default function ClosetScreen() {
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [colorOptions, setColorOptions] = useState<string[]>(['black', 'white', 'red', 'blue', 'green', 'pink', 'beige', 'navy']);
   const [styleOptions, setStyleOptions] = useState<string[]>(['casual', 'formal', 'business', 'evening_wear', 'sport']);
+  const [searchText, setSearchText] = useState('');
 
   React.useEffect(() => {
     getClosetOverview().then((overview) => {
@@ -45,21 +46,30 @@ export default function ClosetScreen() {
     getAttributeSuggestions().then((s) => { setColorOptions(s.colors); setStyleOptions(s.styles); }).catch(() => {});
   }, [items.length]);
 
-  const load = useCallback(async (cat: string, activeFilters: FilterValues) => {
+  const load = useCallback(async (cat: string, activeFilters: FilterValues, search: string) => {
     try {
       const params: Record<string, string> = {};
       if (cat !== 'All') params.category = cat.toLowerCase().replace(/ /g, '_');
       if (activeFilters.season) params.season = activeFilters.season;
       if (activeFilters.color) params.color = activeFilters.color;
       if (activeFilters.style) params.style = activeFilters.style;
+      if (search.trim()) params.search = search.trim();
       const data = await getWardrobeItems(params);
       setItems(data);
     } catch {}
   }, []);
 
-  useFocusEffect(useCallback(() => { load(category, filters); }, [category, filters, load]));
+  useFocusEffect(useCallback(() => { load(category, filters, searchText); }, [category, filters, load]));
 
-  const onRefresh = async () => { setRefreshing(true); await load(category, filters); setRefreshing(false); };
+  // Debounced — searching on every keystroke would fire a network
+  // request per character typed. 400ms after the person stops typing
+  // is enough to feel instant without hammering the API.
+  React.useEffect(() => {
+    const timeout = setTimeout(() => { load(category, filters, searchText); }, 400);
+    return () => clearTimeout(timeout);
+  }, [searchText]);
+
+  const onRefresh = async () => { setRefreshing(true); await load(category, filters, searchText); setRefreshing(false); };
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
 
   return (
@@ -84,6 +94,23 @@ export default function ClosetScreen() {
             <FigmaIcon name="trash" size={16} color={colors.ink} />
           </TouchableOpacity>
         </View>
+      </View>
+
+      <View style={styles.searchBar}>
+        <Ionicons name="search-outline" size={16} color={colors.inkMuted} style={{ marginRight: 6 }} />
+        <TextInput
+          style={styles.searchInput}
+          value={searchText}
+          onChangeText={setSearchText}
+          placeholder="Search your closet…"
+          placeholderTextColor={colors.inkMuted}
+          returnKeyType="search"
+        />
+        {searchText.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchText('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <FigmaIcon name="close" size={14} color={colors.inkMuted} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <Text style={styles.sectionLabel}>Browse by category</Text>
@@ -116,7 +143,7 @@ export default function ClosetScreen() {
               <ItemThumb item={item} size={140} />
               <TouchableOpacity
                 style={styles.favButton}
-                onPress={() => { setItemFavorite(item.id, !item.isFavorite); load(category, filters); }}
+                onPress={() => { setItemFavorite(item.id, !item.isFavorite); load(category, filters, searchText); }}
               >
                 <FigmaIcon name={item.isFavorite ? 'heart' : 'heartOutline'} size={16} color={colors.inkMuted} />
               </TouchableOpacity>
@@ -160,6 +187,11 @@ function makeStyles(colors: any, type: any) {
     // scatter of floating pills — plus a small label above it, since
     // previously there was no header at all indicating what this row
     // of tabs was for.
+    searchBar: {
+      flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border,
+      borderRadius: radius.pill, marginHorizontal: spacing.lg, marginBottom: spacing.md, paddingHorizontal: spacing.md, height: 42,
+    },
+    searchInput: { flex: 1, fontSize: 14, color: colors.ink, paddingVertical: 0 },
     sectionLabel: { fontSize: 12, fontWeight: '700', color: colors.inkMuted, paddingHorizontal: spacing.lg, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3 },
     tabRow: {
       paddingHorizontal: 6, paddingVertical: 6, gap: spacing.xs, alignItems: 'center',

@@ -17,8 +17,9 @@ import { ItemThumb } from '../../components/ItemThumb';
 import { ItemDetailsForm, EMPTY_ITEM_FORM, ItemFormValues } from '../../components/ItemDetailsForm';
 import {
   getWardrobeItem, moveItemToBin, setItemFavorite, archiveWardrobeItem, unarchiveWardrobeItem,
-  updateWardrobeItem, getAttributeSuggestions, markItemWorn,
+  updateWardrobeItem, getAttributeSuggestions, markItemWorn, replaceItemPhoto,
 } from '../../api/wardrobeApi';
+import * as ImagePicker from 'expo-image-picker';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
 
@@ -82,6 +83,30 @@ export default function ItemDetailsScreen() {
     // called this endpoint.
     await markItemWorn(itemId, item.wearCount ?? 0);
     setItem({ ...item, wearCount: (item.wearCount ?? 0) + 1, lastWornAt: Date.now() });
+  };
+
+  const [resaving, setResaving] = useState(false);
+
+  // "Resave" — genuinely fixes a bad photo (wrong crop, background
+  // removal that didn't come out clean) by replacing it and re-running
+  // removal, rather than the only prior option: delete the whole item
+  // and re-add it from scratch just to fix one bad photo.
+  const handleResavePhoto = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return Alert.alert('Permission needed', 'Allow photo access to replace this item\'s picture.');
+    const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.8, allowsEditing: true, aspect: [3, 4] });
+    if (result.canceled) return;
+
+    setResaving(true);
+    try {
+      const updated = await replaceItemPhoto(itemId, result.assets[0].uri);
+      setItem(updated);
+      Alert.alert('Photo updated', 'Cleaning up the background now — this can take a minute. Pull to refresh in a bit to see the result.');
+    } catch (e: any) {
+      Alert.alert("Couldn't update photo", e.message);
+    } finally {
+      setResaving(false);
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -178,6 +203,8 @@ export default function ItemDetailsScreen() {
 
         <View style={{ height: spacing.lg }} />
         <Button label="I wore this today" onPress={handleMarkWorn} />
+        <View style={{ height: spacing.sm }} />
+        <Button label={resaving ? 'Updating…' : 'Resave photo'} variant="outline" onPress={handleResavePhoto} loading={resaving} />
         <View style={{ height: spacing.sm }} />
         <Button label="Edit details" variant="outline" onPress={() => { setForm(itemToForm(item)); setEditing(true); }} />
         <View style={{ height: spacing.sm }} />

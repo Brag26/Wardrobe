@@ -7,16 +7,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { ItemThumb } from '../../components/ItemThumb';
 import { getWardrobeItems } from '../../api/wardrobeApi';
-import { colors, spacing, type, radius } from '../../theme/theme';
+import { spacing, radius } from '../../theme/theme';
+import { useAppTheme } from '../../theme/ThemeContext';
 
-function bucketFor(wearCount: number): { label: string; color: string } {
+function bucketFor(wearCount: number, neverColor: string): { label: string; color: string } {
   if (wearCount >= 10) return { label: 'Often', color: '#3B8352' };
   if (wearCount >= 4) return { label: 'Sometimes', color: '#B8862E' };
   if (wearCount >= 1) return { label: 'Rarely', color: '#C0433A' };
-  return { label: 'Never', color: colors.inkMuted };
+  return { label: 'Never', color: neverColor };
 }
 
 export default function ClosetHeatmapScreen() {
+  const { colors, type } = useAppTheme();
+  const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<any[]>([]);
 
@@ -31,7 +34,7 @@ export default function ClosetHeatmapScreen() {
       ) : (
         <ScrollView contentContainerStyle={styles.grid}>
           {items.map((item) => {
-            const bucket = bucketFor(item.wearCount ?? 0);
+            const bucket = bucketFor(item.wearCount ?? 0, colors.inkMuted);
             return (
               <View key={item.id} style={styles.card}>
                 <ItemThumb item={item} size={96} />
@@ -55,7 +58,8 @@ export default function ClosetHeatmapScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, type: any) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   subtitle: { ...type.muted, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   grid: { flexDirection: 'row', flexWrap: 'wrap', padding: spacing.lg, gap: spacing.md },
@@ -67,4 +71,5 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center' },
   legendDot: { width: 8, height: 8, borderRadius: 4, marginRight: 4 },
   legendLabel: { fontSize: 11, color: colors.inkMuted },
-});
+  });
+}

@@ -11,7 +11,8 @@ import * as Location from 'expo-location';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { ItemThumb } from '../../components/ItemThumb';
 import { getWardrobeItems, getWeatherByCoords } from '../../api/wardrobeApi';
-import { colors, spacing, type, radius } from '../../theme/theme';
+import { spacing, radius } from '../../theme/theme';
+import { useAppTheme } from '../../theme/ThemeContext';
 
 function seasonFromTemp(tempC: number): string {
   if (tempC >= 28) return 'summer';
@@ -31,6 +32,8 @@ function weatherLabel(code: number): string {
 }
 
 export default function WeatherAdaptScreen() {
+  const { colors, type } = useAppTheme();
+  const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
   const [loading, setLoading] = useState(true);
   const [weather, setWeather] = useState<{ temp: number; code: number } | null>(null);
   const [items, setItems] = useState<any[]>([]);
@@ -95,7 +98,8 @@ export default function WeatherAdaptScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, type: any) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   error: { ...type.body, color: colors.danger, textAlign: 'center', marginTop: spacing.xl },
   weatherCard: { backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.lg, alignItems: 'center', marginBottom: spacing.lg },
@@ -107,4 +111,5 @@ const styles = StyleSheet.create({
   gridItem: { alignItems: 'center' },
   itemLabel: { fontSize: 11, color: colors.inkMuted, marginTop: 4, textTransform: 'capitalize' },
   empty: { ...type.muted },
-});
+  });
+}

@@ -201,21 +201,52 @@ export default function AddItemScreen() {
   // can say "still cleaning up the photo" instead of implying it's
   // instant — background removal genuinely takes a few seconds to
   // tens of seconds depending on provider.
+  //
+  // v2: previously the message never changed no matter how long this
+  // ran ("this can take a minute" — still true, unmoving, after 5
+  // actual minutes), and the poll had no cap, so a stuck/never-
+  // completing status would spin forever with zero signal that
+  // anything was unusual. Now shows real elapsed time, escalates the
+  // message if it's taking longer than typical, and stops polling
+  // after 2 minutes — at that point it's clearly not "any second now,"
+  // and the honest thing is to say so and let the person move on
+  // rather than keep silently spinning.
   const [bgStatus, setBgStatus] = useState<string | null>(null);
+  const [elapsedSec, setElapsedSec] = useState(0);
   React.useEffect(() => {
     if (!savedItem) return;
     setBgStatus(savedItem.backgroundRemoval?.status ?? 'pending');
+    setElapsedSec(0);
+    const startedAt = Date.now();
+
+    const tick = setInterval(() => setElapsedSec(Math.round((Date.now() - startedAt) / 1000)), 1000);
+
     const interval = setInterval(async () => {
+      const elapsed = Date.now() - startedAt;
+      if (elapsed > 120_000) {
+        clearInterval(interval);
+        clearInterval(tick);
+        return;
+      }
       try {
         const fresh = await (await import('../../api/wardrobeApi')).getWardrobeItem(savedItem.id);
         setBgStatus(fresh.backgroundRemoval?.status ?? 'done');
         if (fresh.backgroundRemoval?.status === 'done' || fresh.backgroundRemoval?.status === 'failed') {
           clearInterval(interval);
+          clearInterval(tick);
         }
-      } catch { clearInterval(interval); }
+      } catch { clearInterval(interval); clearInterval(tick); }
     }, 2500);
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); clearInterval(tick); };
   }, [savedItem]);
+
+  const bgMessage = () => {
+    if (bgStatus === 'done') return 'Background cleanup is done — it looks great!';
+    if (bgStatus === 'failed') return "Background cleanup didn't work this time, but your item is saved.";
+    if (elapsedSec > 120) return "Still working on this one — it's taking longer than usual. Your item's already saved, so feel free to move on; the photo will update in your closet once it finishes.";
+    if (elapsedSec > 30) return `Still cleaning up the background (${elapsedSec}s) — some photos take a bit longer than others.`;
+    return `Cleaning up the background now (${elapsedSec}s)…`;
+  };
 
   if (savedItem) {
     return (
@@ -224,9 +255,7 @@ export default function AddItemScreen() {
           <Ionicons name="checkmark-circle" size={56} color={colors.success ?? '#3B8352'} />
           <Text style={[type.h2, { marginTop: spacing.md }]}>Successfully added</Text>
           <Text style={[type.muted, { textAlign: 'center', marginTop: 4 }]}>
-            {bgStatus === 'done' ? 'Background cleanup is done — it looks great!'
-              : bgStatus === 'failed' ? "Background cleanup didn't work this time, but your item is saved."
-              : 'Cleaning up the background now — this can take a minute.'}
+            {bgMessage()}
           </Text>
           {bgStatus === 'processing' || bgStatus === 'pending' ? (
             <View style={styles.skeletonBox}><ActivityIndicator color={colors.inkMuted} /></View>

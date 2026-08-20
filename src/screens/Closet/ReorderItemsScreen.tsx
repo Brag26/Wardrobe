@@ -20,9 +20,12 @@ import { getWardrobeItems, reorderWardrobeItems } from '../../api/wardrobeApi';
 import { ItemThumb } from '../../components/ItemThumb';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { Button } from '../../components/Button';
-import { colors, spacing, type, radius } from '../../theme/theme';
+import { spacing, radius } from '../../theme/theme';
+import { useAppTheme } from '../../theme/ThemeContext';
 
 export default function ReorderItemsScreen() {
+  const { colors, type } = useAppTheme();
+  const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
   const navigation = useNavigation<any>();
   const [items, setItems] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
@@ -79,7 +82,8 @@ export default function ReorderItemsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, type: any) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   subtitle: { ...type.muted, paddingHorizontal: spacing.lg, marginBottom: spacing.xs },
   row: {
@@ -92,4 +96,5 @@ const styles = StyleSheet.create({
   arrowText: { fontSize: 16, fontWeight: '700', color: colors.ink },
   arrowDisabled: { opacity: 0.25 },
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: spacing.lg, backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.border },
-});
+  });
+}

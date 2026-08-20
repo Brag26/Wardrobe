@@ -8,7 +8,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { getChatHistory, sendChatMessage, clearChatHistory, getItemsByIds } from '../../api/wardrobeApi';
 import { AraMascot } from '../../components/AraMascot';
 import { ItemThumb } from '../../components/ItemThumb';
-import { colors, spacing, type, radius } from '../../theme/theme';
+import { spacing, radius } from '../../theme/theme';
+import { useAppTheme } from '../../theme/ThemeContext';
 
 const CHAT_SUGGESTIONS = [
   'What should I wear today?',
@@ -18,6 +19,8 @@ const CHAT_SUGGESTIONS = [
 ];
 
 export default function ChatScreen() {
+  const { colors, type } = useAppTheme();
+  const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
   const navigation = useNavigation<any>();
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
@@ -267,7 +270,8 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, type: any) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center' },
@@ -279,12 +283,18 @@ const styles = StyleSheet.create({
   headerButton: { width: 34, height: 34, borderRadius: radius.pill, backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   headerButtonIcon: { fontSize: 14 },
   log: { flex: 1 },
-  bubble: { padding: 12, borderRadius: radius.md, marginBottom: spacing.sm, maxWidth: '80%' },
+  bubble: { padding: 14, borderRadius: radius.md, marginBottom: spacing.sm, maxWidth: '80%' },
   referencedItemsRow: { marginTop: -4, marginBottom: spacing.sm },
   referencedItemCard: { marginRight: spacing.xs, borderRadius: radius.sm, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
   userBubble: { backgroundColor: colors.black, alignSelf: 'flex-end' },
   assistantBubble: { backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, alignSelf: 'flex-start' },
-  bubbleText: { ...type.body },
+  // type.body has no explicit lineHeight — fine for short labels
+  // elsewhere in the app, but a real problem for multi-sentence chat
+  // replies: without it, React Native falls back to tight default line
+  // spacing, which is exactly what made longer replies read as one
+  // cramped block of text. 1.5x the font size is a standard readable
+  // ratio for actual prose, not just short UI text.
+  bubbleText: { ...type.body, lineHeight: 21, letterSpacing: 0.1 },
   userText: { color: colors.white },
   typingBubble: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   typingText: { ...type.muted },
@@ -304,4 +314,5 @@ const styles = StyleSheet.create({
   input: { flex: 1, backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: 10 },
   sendButton: { backgroundColor: colors.black, borderRadius: radius.pill, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   sendText: { color: colors.white, fontWeight: '700' },
-});
+  });
+}

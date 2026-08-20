@@ -6,9 +6,12 @@ import { Button } from '../../components/Button';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { verifyOtp, requestOtp } from '../../api/wardrobeApi';
 import { useAuthStore } from '../../store/authStore';
-import { colors, spacing, type, radius } from '../../theme/theme';
+import { spacing, radius } from '../../theme/theme';
+import { useAppTheme } from '../../theme/ThemeContext';
 
 export default function OtpScreen() {
+  const { colors, type } = useAppTheme();
+  const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
   const route = useRoute<any>();
   const phone = route.params?.phone ?? '';
   const [code, setCode] = useState('');
@@ -65,7 +68,8 @@ export default function OtpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, type: any) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   keyboardView: { flex: 1, padding: spacing.lg, justifyContent: 'center' },
   title: { ...type.h1, textAlign: 'center' },
@@ -75,4 +79,5 @@ const styles = StyleSheet.create({
     padding: 16, fontSize: 22, letterSpacing: 6, textAlign: 'center',
     color: colors.ink, marginBottom: spacing.md, backgroundColor: colors.bgSoft,
   },
-});
+  });
+}

@@ -20,7 +20,8 @@ import { ItemThumb } from '../../components/ItemThumb';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { Button } from '../../components/Button';
 import { getWardrobeItems, createOutfit, updateOutfit, getOutfit, getOutfitCategories, getAttributeSuggestions } from '../../api/wardrobeApi';
-import { colors, spacing, type, radius } from '../../theme/theme';
+import { spacing, radius } from '../../theme/theme';
+import { useAppTheme } from '../../theme/ThemeContext';
 
 const SLOT_PREFIX_GROUPS: Record<string, string[]> = {
   Tops: ['top', 'shirt', 't_shirt', 'blouse', 'tank_top', 'sweater', 'hoodie', 'kurti', 'tunic', 'camisole', 'bodysuit'],
@@ -40,6 +41,8 @@ function sectionFor(category: string): string {
 }
 
 export default function CreateOutfitScreen() {
+  const { colors, type } = useAppTheme();
+  const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const editOutfitId: string | undefined = route.params?.editOutfitId;
@@ -173,7 +176,8 @@ export default function CreateOutfitScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, type: any) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   title: { ...type.h1, marginBottom: spacing.lg, textAlign: 'center' },
   sectionLabel: { ...type.h3, marginTop: spacing.md, marginBottom: spacing.sm },
@@ -192,4 +196,5 @@ const styles = StyleSheet.create({
     paddingVertical: 12, fontSize: 14, color: colors.ink, backgroundColor: colors.bgSoft, marginBottom: spacing.lg,
   },
   empty: { ...type.muted },
-});
+  });
+}

@@ -6,9 +6,12 @@ import { AraMascot } from '../../components/AraMascot';
 import { Button } from '../../components/Button';
 import { requestOtp, devLogin } from '../../api/wardrobeApi';
 import { useAuthStore } from '../../store/authStore';
-import { colors, spacing, type, radius } from '../../theme/theme';
+import { spacing, radius } from '../../theme/theme';
+import { useAppTheme } from '../../theme/ThemeContext';
 
 export default function PhoneScreen() {
+  const { colors, type } = useAppTheme();
+  const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
   const navigation = useNavigation<any>();
   const [phone, setPhone] = useState('+91');
   const [loading, setLoading] = useState(false);
@@ -86,7 +89,8 @@ export default function PhoneScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, type: any) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   center: { alignItems: 'center', marginTop: spacing.xxl },
   title: { ...type.h1, marginTop: spacing.lg },
@@ -101,4 +105,5 @@ const styles = StyleSheet.create({
   devToggleText: { fontSize: 11, color: colors.inkMuted, textDecorationLine: 'underline' },
   devBox: { marginTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md },
   devLabel: { ...type.muted, marginBottom: spacing.sm },
-});
+  });
+}

@@ -8,7 +8,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { getWardrobeItems } from '../../api/wardrobeApi';
-import { colors, spacing, type, radius } from '../../theme/theme';
+import { spacing, radius } from '../../theme/theme';
+import { useAppTheme } from '../../theme/ThemeContext';
 
 function computeHealth(items: any[]) {
   const total = items.length || 1;
@@ -30,6 +31,8 @@ function computeHealth(items: any[]) {
 }
 
 export default function ClosetHealthScreen() {
+  const { colors, type } = useAppTheme();
+  const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
   const [loading, setLoading] = useState(true);
   const [health, setHealth] = useState<any>(null);
 
@@ -63,7 +66,8 @@ export default function ClosetHealthScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, type: any) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   scoreCircle: { width: 130, height: 130, borderRadius: 65, borderWidth: 8, borderColor: colors.black, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
   scoreNum: { fontSize: 28, fontWeight: '700', color: colors.ink },
@@ -71,4 +75,5 @@ const styles = StyleSheet.create({
   card: { width: '100%', backgroundColor: colors.bgSoft, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md },
   checkRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
   checkLabel: { ...type.body },
-});
+  });
+}

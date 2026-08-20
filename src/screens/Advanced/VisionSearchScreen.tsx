@@ -17,11 +17,14 @@ import { ScreenHeader } from '../../components/ScreenHeader';
 import { Chip } from '../../components/Chip';
 import { ItemThumb } from '../../components/ItemThumb';
 import { getWardrobeItems } from '../../api/wardrobeApi';
-import { colors, spacing, type, radius } from '../../theme/theme';
+import { spacing, radius } from '../../theme/theme';
+import { useAppTheme } from '../../theme/ThemeContext';
 
 const CATEGORIES = ['top', 'bottom', 'dress', 'shoes', 'bag', 'accessory'];
 
 export default function VisionSearchScreen() {
+  const { colors, type } = useAppTheme();
+  const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [category, setCategory] = useState<string | null>(null);
   const [results, setResults] = useState<any[]>([]);
@@ -85,7 +88,8 @@ export default function VisionSearchScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, type: any) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   subtitle: { ...type.muted, marginBottom: spacing.md },
   photoBox: {
@@ -100,4 +104,5 @@ const styles = StyleSheet.create({
   gridItem: { alignItems: 'center' },
   itemLabel: { fontSize: 11, color: colors.inkMuted, marginTop: 4, textTransform: 'capitalize' },
   empty: { ...type.muted },
-});
+  });
+}

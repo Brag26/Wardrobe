@@ -230,6 +230,19 @@ export const setItemFavorite = (id: string, isFavorite: boolean) =>
   authedFetch(`/wardrobe/items/${id}/favorite`, { method: 'POST', body: JSON.stringify({ isFavorite }) });
 export const retryBackgroundRemoval = (id: string) =>
   authedFetch(`/wardrobe/items/${id}/retry-background-removal`, { method: 'POST' });
+
+// "Resave" on Item Details — replace an existing item's photo and
+// re-run background removal on it. Previously there was no way to fix
+// a bad initial photo (wrong crop, background-removal that didn't come
+// out clean) short of deleting the item and re-adding it from scratch.
+export async function replaceItemPhoto(itemId: string, localImageUri: string) {
+  const { key, uploadUrl } = await authedFetch('/wardrobe/upload-url', {
+    method: 'POST', body: JSON.stringify({ fileExtension: 'jpg' }),
+  });
+  const photoBlob = await (await fetch(localImageUri)).blob();
+  await fetchWithTimeout(uploadUrl, { method: 'PUT', body: photoBlob, headers: { 'Content-Type': 'image/jpeg' } });
+  return authedFetch(`/wardrobe/items/${itemId}/photo`, { method: 'POST', body: JSON.stringify({ s3Key: key }) });
+}
 export const moveItemToBin = (id: string) => authedFetch(`/wardrobe/items/${id}`, { method: 'DELETE' });
 export const restoreItemFromBin = (id: string) => authedFetch(`/wardrobe/items/${id}/restore`, { method: 'POST' });
 export const permanentlyDeleteItem = (id: string) => authedFetch(`/wardrobe/items/${id}/permanent`, { method: 'DELETE' });
@@ -322,6 +335,7 @@ export const getCalendarDay = (date: string) => authedFetch(`/calendar/${date}`)
 export const setCalendarDay = (date: string, outfitId: string, note?: string) =>
   authedFetch(`/calendar/${date}`, { method: 'PUT', body: JSON.stringify({ outfitId, note }) });
 export const deleteCalendarDay = (date: string) => authedFetch(`/calendar/${date}`, { method: 'DELETE' });
+export const getTodayOutfit = () => authedFetch('/calendar/today/outfit');
 
 // ---------- Weather ----------
 // Proxied through our own backend — the app never calls a third-party

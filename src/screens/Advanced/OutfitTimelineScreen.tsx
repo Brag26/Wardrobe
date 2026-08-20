@@ -9,7 +9,8 @@ import { ScreenHeader } from '../../components/ScreenHeader';
 import { Ionicons } from '@expo/vector-icons';
 import { ItemThumb } from '../../components/ItemThumb';
 import { getWardrobeItems } from '../../api/wardrobeApi';
-import { colors, spacing, type, radius } from '../../theme/theme';
+import { spacing, radius } from '../../theme/theme';
+import { useAppTheme } from '../../theme/ThemeContext';
 
 const TIMES = [
   { key: 'morning', label: 'Morning', hint: 'Add light layer', icon: 'partly-sunny-outline' as const },
@@ -19,6 +20,8 @@ const TIMES = [
 ];
 
 export default function OutfitTimelineScreen() {
+  const { colors, type } = useAppTheme();
+  const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
   const [loading, setLoading] = useState(true);
   const [base, setBase] = useState<any[]>([]);
   const [outerwear, setOuterwear] = useState<any>(null);
@@ -64,7 +67,8 @@ export default function OutfitTimelineScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, type: any) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   subtitle: { ...type.muted, paddingHorizontal: spacing.lg },
   column: { width: 120, backgroundColor: colors.bgSoft, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.sm, alignItems: 'center' },
@@ -74,4 +78,5 @@ const styles = StyleSheet.create({
   layerStack: { gap: spacing.xs, alignItems: 'center' },
   toggleButton: { marginTop: spacing.sm, backgroundColor: colors.black, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: spacing.sm },
   toggleText: { color: colors.white, fontSize: 10, fontWeight: '600' },
-});
+  });
+}

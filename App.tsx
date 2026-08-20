@@ -3,6 +3,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator } from 'react-native';
+import { useFonts } from 'expo-font';
+import { Ionicons } from '@expo/vector-icons';
 
 import AuthNavigator from './src/navigation/AuthNavigator';
 import MainStackNavigator from './src/navigation/MainStackNavigator';
@@ -33,6 +35,34 @@ function AppInner() {
 }
 
 export default function App() {
+  // Ionicons' font asset has to load asynchronously before it can
+  // render any glyph — previously nothing waited for this at all, so
+  // every icon rendered via <Ionicons> (still used in ~20 places
+  // alongside the custom FigmaIcon set — tab bar, calendar, mic/send/
+  // briefcase, etc. that weren't in the Figma export) would render
+  // BLANK until the font finished loading in the background.
+  // Inconsistent and worse on a cold launch — exactly the "blank
+  // icons all over" symptom, not a broken icon reference, just
+  // nothing waiting for the font before the UI painted.
+  //
+  // Deliberately NOT using expo-splash-screen here to keep the native
+  // splash image up during this wait — that's a real native module
+  // requiring an exact SDK-54-matched version, and guessing that wrong
+  // risks the same native-build failure `expo-camera`'s version
+  // mismatch caused earlier. A plain loading view is a completely
+  // safe, JS-only way to get the same practical fix (no blank icons)
+  // without that risk — worth revisiting later once there's a reliable
+  // way to confirm the exact right splash-screen version.
+  const [fontsLoaded] = useFonts({ ...Ionicons.font });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
   return (
     <ThemeProvider>
       <SafeAreaProvider>
