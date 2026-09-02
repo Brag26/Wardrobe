@@ -158,6 +158,17 @@ export async function getOutfit(userId: string, id: string): Promise<Outfit | nu
   return doc ? (strip(doc) as Outfit) : null;
 }
 
+// Batch version — powers the Calendar month grid's per-day outfit
+// preview. One query for up to 31 outfits (a full month), instead of
+// looping getOutfit() once per day, which would mean 31 separate round
+// trips just to render one screen.
+export async function getOutfitsByIds(userId: string, ids: string[]): Promise<Outfit[]> {
+  if (ids.length === 0) return [];
+  await connectToDatabase();
+  const docs = await OutfitModel.find({ userId, id: { $in: ids } }).lean();
+  return docs.map(strip) as Outfit[];
+}
+
 export async function updateOutfit(userId: string, id: string, patch: Partial<Outfit>): Promise<void> {
   await connectToDatabase();
   await OutfitModel.updateOne({ userId, id }, { $set: { ...patch, updatedAt: Date.now() } });

@@ -7,7 +7,7 @@ import { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import {
   setCalendarEntry, getCalendarEntry, listCalendarEntriesForMonth, deleteCalendarEntry,
-  listWardrobeItems, createOutfit, getOutfit, getWardrobeItemsByIds,
+  listWardrobeItems, createOutfit, getOutfit, getOutfitsByIds, getWardrobeItemsByIds,
 } from '../services/mongodb.service';
 import { pickOutfitItems } from '../services/aiStylist.service';
 import { Outfit } from '../types/domain';
@@ -26,12 +26,35 @@ function todayISO(): string {
 }
 
 // GET /api/calendar?month=YYYY-MM
+// GET /api/calendar?month=YYYY-MM
+// Returns each day's entry enriched with a small resolved item preview
+// (2 items) — previously the client only got outfitId/date, meaning it
+// couldn't show anything but a plain number per day even for dates
+// that DO have a real outfit assigned. Resolved here in two batch
+// queries (all outfits for the month, then all their items) rather
+// than N+1 calls — a full month is at most 31 entries, so this stays
+// cheap regardless of how many days actually have something set.
 export async function listMonth(req: Request, res: Response) {
   const userId = requireUser(req, res); if (!userId) return;
   const month = (req.query.month as string) || new Date().toISOString().slice(0, 7);
   if (!/^\d{4}-\d{2}$/.test(month)) return res.status(400).json({ error: 'month must be YYYY-MM' });
   const entries = await listCalendarEntriesForMonth(userId, month);
-  res.json(entries);
+
+  const outfitIds = entries.map((e) => e.outfitId).filter(Boolean) as string[];
+  const outfits = await getOutfitsByIds(userId, outfitIds);
+  const outfitById = new Map(outfits.map((o) => [o.id, o]));
+
+  const allItemIds = outfits.flatMap((o) => (o.itemIds ?? []).slice(0, 2));
+  const items = await getWardrobeItemsByIds(userId, [...new Set(allItemIds)]);
+  const itemById = new Map(items.map((i) => [i.id, i]));
+
+  const enriched = entries.map((e) => {
+    const outfit = e.outfitId ? outfitById.get(e.outfitId) : null;
+    const previewItems = (outfit?.itemIds ?? []).slice(0, 2).map((id) => itemById.get(id)).filter(Boolean);
+    return { ...e, previewItems };
+  });
+
+  res.json(enriched);
 }
 
 // GET /api/calendar/:date   (date = YYYY-MM-DD)
