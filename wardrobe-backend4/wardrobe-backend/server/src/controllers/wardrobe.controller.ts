@@ -252,6 +252,41 @@ export async function updateItem(req: Request, res: Response) {
   res.json(item);
 }
 
+// POST /api/wardrobe/items/:id/photo — "Resave" on Item Details: replace
+// an existing item's photo with a new one, re-running background
+// removal on it. Previously there was NO way to change an item's photo
+// after creation at all — updateItem's allowed-fields list only ever
+// covered text/metadata (name, category, color, etc.), not the image.
+// So if the first photo had a bad crop, wrong angle, or hadn't had its
+// background removed cleanly, there was genuinely no path to fix it
+// short of deleting the item and re-adding it from scratch. Same
+// upload flow as item creation: client gets a presigned URL, uploads
+// directly to S3, then calls this with the resulting s3Key.
+export async function replaceItemPhoto(req: Request, res: Response) {
+  const userId = requireUser(req, res); if (!userId) return;
+  const { s3Key } = req.body as { s3Key: string };
+  if (!s3Key) return res.status(400).json({ error: 's3Key is required' });
+
+  const itemId = req.params.id;
+  const item = await getWardrobeItem(userId, itemId);
+  if (!item) return res.status(404).json({ error: 'Item not found' });
+
+  // Update the raw (pre-removal) image immediately so the UI has
+  // SOMETHING to show right away, then kick off background removal
+  // the same async way item creation does — status flips to
+  // 'processing' -> 'done'/'failed', polled by the client exactly like
+  // a brand-new item's first save.
+  await updateWardrobeItem(userId, itemId, {
+    s3Key,
+    imageUrl: getPublicUrl(s3Key),
+    backgroundRemoval: { status: 'pending', error: null },
+  });
+  processBackgroundRemoval(userId, itemId, s3Key); // fire-and-forget, same as creation
+
+  const updated = await getWardrobeItem(userId, itemId);
+  res.json(updated);
+}
+
 // POST /api/items/:id/worn
 export async function markWorn(req: Request, res: Response) {
   const userId = requireUser(req, res); if (!userId) return;

@@ -7,6 +7,7 @@ import cors from 'cors';
 import 'express-async-errors';
 import { requireAuth } from './middleware/auth';
 import { getOutfitById } from './controllers/styling.controller';
+import { connectToDatabase } from './services/db';
 
 import authRoutes from './routes/auth.routes';
 import wardrobeRoutes from './routes/wardrobe.routes';
@@ -25,7 +26,23 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 
-app.get('/health', (_req, res) => res.json({ ok: true }));
+// Previously this just returned {ok: true} unconditionally — it
+// confirmed the Node process was running, but said nothing about
+// whether the database was actually reachable, which is exactly the
+// thing that's failed silently more than once (MongoDB Atlas IP
+// allowlist blocking Render, a bad MONGODB_URI, etc.). Now it
+// genuinely attempts a DB connection and reports real status — hit
+// this URL directly in a browser any time to check both API server
+// AND database connectivity in one request, without needing to go
+// through the full login flow to find out.
+app.get('/health', async (_req, res) => {
+  try {
+    await connectToDatabase();
+    res.json({ ok: true, database: 'connected' });
+  } catch (err: any) {
+    res.status(503).json({ ok: false, database: 'unreachable', error: err.message });
+  }
+});
 
 // Public — no auth required (this IS how auth is obtained)
 app.use('/api/auth', authRoutes);

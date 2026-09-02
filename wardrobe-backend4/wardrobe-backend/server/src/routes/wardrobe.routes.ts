@@ -4,7 +4,7 @@ import { requireAuth } from '../middleware/auth';
 import {
   requestUploadUrl, requestBulkUploadUrls, saveWardrobeItem, saveBulkWardrobeItems,
   listItems, listBinItems, listArchive, getItem, closetOverview,
-  updateItem, markWorn, setFavorite, retryBackgroundRemoval,
+  updateItem, replaceItemPhoto, markWorn, setFavorite, retryBackgroundRemoval,
   moveToBin, restoreFromBin, permanentDelete, attributeSuggestions,
   archiveItemHandler, unarchiveItemHandler, reorderItems, scanTag,
 } from '../controllers/wardrobe.controller';
@@ -33,6 +33,7 @@ router.get('/items/:id', getItem);
 
 // Update
 router.patch('/items/:id', updateItem);
+router.post('/items/:id/photo', replaceItemPhoto);
 router.post('/items/:id/worn', markWorn);
 router.post('/items/:id/favorite', setFavorite);
 router.post('/items/:id/archive', archiveItemHandler);
