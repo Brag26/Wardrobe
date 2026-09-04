@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, FlatList, Switch, Animated } from 'react-native';
-import { Image } from 'expo-image';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, FlatList, Switch, Animated, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -394,7 +393,7 @@ export default function HomeScreen() {
                 onPress={() => navigation.navigate('ClosetTab', { screen: 'ClosetHome', params: { initialCategory: cat } })}
               >
                 {cover?.imageUrl ? (
-                  <Image source={{ uri: cover.imageUrl }} style={styles.categoryCardImage} cachePolicy="memory-disk" transition={150} />
+                  <Image source={{ uri: cover.imageUrl }} style={styles.categoryCardImage} />
                 ) : (
                   <View style={[styles.categoryCardImage, styles.categoryCardImageFallback]}>
                     <Ionicons name="pricetag-outline" size={22} color={colors.inkMuted} />

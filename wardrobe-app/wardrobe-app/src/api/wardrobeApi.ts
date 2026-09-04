@@ -9,36 +9,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
-// Photos come straight off the phone's camera — often 3000px+ wide,
-// several MB — but every place that displays them shows a thumbnail
-// well under 300px. Previously the full original got uploaded and
-// re-downloaded at that full resolution every time, everywhere,
-// forever — real cost in upload time, storage, and (the actual
-// complaint) how long images take to load throughout the app,
-// especially on a slower connection. Resizing to a sensible max
-// dimension before upload fixes it at the source, for every future
-// load, not just repeat views (that's what ItemThumb's expo-image
-// caching handles separately).
-//
-// Wrapped in try/catch with a same-URI fallback on purpose: if this
-// fails for any reason (a corrupted photo, an unexpected file type,
-// an API surface that behaves differently on some device), the
-// person's item still saves with their original photo rather than
-// the whole upload breaking over what's meant to be a size
-// optimization, not a required step.
+// resizeForUpload previously used expo-image-manipulator here, but
+// that native module (added alongside expo-image in the same build)
+// is the suspected cause of a crash-on-launch — reverted together
+// with expo-image so both risky additions are removed in one clean
+// pass, restoring a known-good baseline before re-attempting either
+// with better-verified native module versions. This is now a no-op
+// passthrough (returns the original URI unresized) rather than
+// actually resizing — the upload-time size optimization is paused,
+// not the upload itself.
 async function resizeForUpload(localImageUri: string, maxDimension = 1200): Promise<string> {
-  try {
-    const context = ImageManipulator.manipulate(localImageUri);
-    context.resize({ width: maxDimension });
-    const rendered = await context.renderAsync();
-    const result = await rendered.saveAsync({ compress: 0.85, format: SaveFormat.JPEG });
-    return result.uri;
-  } catch (err) {
-    console.warn('[resizeForUpload] Resize failed, uploading original image instead:', err);
-    return localImageUri;
-  }
+  return localImageUri;
 }
 
 // Auto-picks the right host for wherever this is running:

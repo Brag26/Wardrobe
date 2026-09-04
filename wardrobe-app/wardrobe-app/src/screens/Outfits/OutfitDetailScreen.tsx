@@ -23,7 +23,15 @@ import { useAppTheme } from '../../theme/ThemeContext';
 export default function OutfitDetailScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
-  const { outfitId } = route.params;
+  // Previously destructured route.params directly with no guard —
+  // React Navigation's params CAN be undefined depending on how a
+  // screen gets reached, and an unguarded destructure of undefined
+  // throws immediately. Real crash risk, fixed defensively here even
+  // though it's not confirmed as THE cause of the current blank-screen
+  // issue (this screen only mounts once actually navigated to, so it
+  // wouldn't explain a blank screen right at app launch before any
+  // navigation happens).
+  const outfitId = route.params?.outfitId;
   const { colors, type } = useAppTheme();
   const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
 
@@ -32,6 +40,10 @@ export default function OutfitDetailScreen() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
+    if (!outfitId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const o = await getOutfit(outfitId);
@@ -63,6 +75,15 @@ export default function OutfitDetailScreen() {
       { text: 'Delete', style: 'destructive', onPress: async () => { await deleteOutfit(outfitId); navigation.goBack(); } },
     ]);
   };
+
+  if (!outfitId) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <ScreenHeader title="Outfit" />
+        <Text style={{ padding: spacing.lg, color: colors.inkMuted }}>Couldn't find that outfit.</Text>
+      </SafeAreaView>
+    );
+  }
 
   if (loading || !outfit) {
     return (

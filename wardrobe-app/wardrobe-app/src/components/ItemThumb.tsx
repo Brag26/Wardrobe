@@ -8,8 +8,7 @@
 // is what was happening with every seeded/imported item, since they
 // all point at S3 URLs that can't actually be reached yet.
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Image } from 'expo-image';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { colors, radius } from '../theme/theme';
 
 // Exact-match first, then PREFIX fallback (e.g. 'dress_bodycon' falls
@@ -77,9 +76,7 @@ export function ItemThumb({ item, size = 72, selected, noBorder }: ItemThumbProp
         <Image
           source={{ uri: item.imageUrl }}
           style={styles.image}
-          contentFit={noBorder ? 'contain' : 'cover'}
-          cachePolicy="memory-disk"
-          transition={150}
+          resizeMode={noBorder ? 'contain' : 'cover'}
           onError={() => setPhotoFailed(true)}
         />
       ) : (
