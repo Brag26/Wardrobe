@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -46,7 +46,20 @@ export default function ClosetScreen() {
     getAttributeSuggestions().then((s) => { setColorOptions(s.colors); setStyleOptions(s.styles); }).catch(() => {});
   }, [items.length]);
 
+  // Previously: (1) no loading state at all, meaning the FlatList's
+  // empty-state message ("No items yet") would show during the
+  // initial fetch too, since `items` starts as [] before the first
+  // real response arrives — a person with a full closet would see
+  // "No items yet" for however long the fetch takes (on a cold
+  // backend, that's been measured at 30-60+ seconds elsewhere in this
+  // app), which reads as data loss, not loading. (2) `catch {}`
+  // silently swallowed any real error with zero trace — same pattern
+  // found and fixed repeatedly elsewhere this session.
+  const [closetLoading, setClosetLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
   const load = useCallback(async (cat: string, activeFilters: FilterValues, search: string) => {
+    setClosetLoading(true);
     try {
       const params: Record<string, string> = {};
       if (cat !== 'All') params.category = cat.toLowerCase().replace(/ /g, '_');
@@ -56,7 +69,12 @@ export default function ClosetScreen() {
       if (search.trim()) params.search = search.trim();
       const data = await getWardrobeItems(params);
       setItems(data);
-    } catch {}
+    } catch (e: any) {
+      console.error('[ClosetScreen] load failed:', e);
+    } finally {
+      setClosetLoading(false);
+      setHasLoadedOnce(true);
+    }
   }, []);
 
   useFocusEffect(useCallback(() => { load(category, filters, searchText); }, [category, filters, load]));
@@ -136,7 +154,15 @@ export default function ClosetScreen() {
         columnWrapperStyle={{ gap: spacing.sm, paddingHorizontal: spacing.lg }}
         contentContainerStyle={{ gap: spacing.sm, paddingBottom: 90 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent={<Text style={styles.empty}>No items yet — tap Add items below.</Text>}
+        ListEmptyComponent={
+          closetLoading && !hasLoadedOnce ? (
+            <View style={{ paddingTop: spacing.xxl, alignItems: 'center' }}>
+              <ActivityIndicator color={colors.inkMuted} />
+            </View>
+          ) : (
+            <Text style={styles.empty}>No items yet — tap Add items below.</Text>
+          )
+        }
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })}>
             <View style={styles.thumbWrap}>

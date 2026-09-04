@@ -1,6 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import OutfitsScreen from '../screens/Outfits/OutfitsScreen';
+import OutfitDetailScreen from '../screens/Outfits/OutfitDetailScreen';
 import CreateOutfitScreen from '../screens/Outfits/CreateOutfitScreen';
 import StartPackingScreen from '../screens/Outfits/StartPackingScreen';
 import SelectPackingOutfitsScreen from '../screens/Outfits/SelectPackingOutfitsScreen';
@@ -12,6 +13,7 @@ export default function OutfitsNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="OutfitsHome" component={OutfitsScreen} />
+      <Stack.Screen name="OutfitDetail" component={OutfitDetailScreen} />
       <Stack.Screen name="CreateOutfit" component={CreateOutfitScreen} />
       <Stack.Screen name="StartPacking" component={StartPackingScreen} />
       <Stack.Screen name="SelectPackingOutfits" component={SelectPackingOutfitsScreen} />

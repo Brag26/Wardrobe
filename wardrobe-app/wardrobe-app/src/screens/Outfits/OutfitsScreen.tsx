@@ -1,10 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Share } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Share, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { FigmaIcon } from '../../components/icons/FigmaIcon';
 import { listOutfits, getOutfitCategories, getItemsByIds, deleteOutfit, updateOutfit, listPackings, getAttributeSuggestions } from '../../api/wardrobeApi';
+import { collageLayout } from '../../utils/outfitCollage';
 import { ItemThumb } from '../../components/ItemThumb';
 import { FilterPanel, FilterValues } from '../../components/FilterPanel';
 import { spacing, radius } from '../../theme/theme';
@@ -34,52 +35,7 @@ const SEASONS = ['summer', 'autumn', 'winter', 'monsoon', 'spring', 'all_season'
 // by item INDEX, so a bag could end up "anchoring" the composition
 // just because it happened to be first in the array — this classifies
 // by actual garment type instead.
-type CollageRole = 'bottom' | 'top' | 'shoes' | 'bag' | 'accessory';
 
-function classifyRole(category: string): CollageRole {
-  const c = category.toLowerCase();
-  if (/jean|pant|trouser|short|skirt|legging|jogger/.test(c)) return 'bottom';
-  if (/shoe|sneaker|boot|heel|sandal|flat|loafer/.test(c)) return 'shoes';
-  if (/bag|purse|backpack|tote|clutch/.test(c)) return 'bag';
-  if (/sunglass|glass|jewel|hat|belt|scarf|watch|necklace|earring/.test(c)) return 'accessory';
-  return 'top'; // shirt, dress, jacket, hoodie, blazer, sweater, etc. — anything not caught above
-}
-
-function collageLayout(items: { category: string }[]): { top: number; left: number; thumbSize: number }[] {
-  const roles = items.map((i) => classifyRole(i.category));
-  const positions: { top: number; left: number; thumbSize: number }[] = new Array(items.length);
-
-  const bottomIdx = roles.findIndex((r) => r === 'bottom');
-  const topIdxs = roles.map((r, i) => (r === 'top' ? i : -1)).filter((i) => i >= 0);
-  const shoeIdx = roles.findIndex((r) => r === 'shoes');
-  const bagIdx = roles.findIndex((r) => r === 'bag');
-  const accessoryIdx = roles.findIndex((r) => r === 'accessory');
-
-  // Bottoms anchor the composition — large, roughly centered, given
-  // real vertical room, same as the jeans in the reference.
-  if (bottomIdx >= 0) positions[bottomIdx] = { top: 28, left: 20, thumbSize: 108 };
-
-  // Tops layer directly on each other (hoodie-over-shirt in the
-  // reference) — first one sits upper-area, any second/third top
-  // offsets down-and-over it, genuinely overlapping, not beside it.
-  topIdxs.forEach((idx, n) => {
-    const noBottom = bottomIdx < 0;
-    positions[idx] = {
-      top: n === 0 ? 0 : 14 + n * 22,
-      left: n === 0 ? 22 : 30 + n * 6,
-      thumbSize: noBottom ? 120 - n * 6 : 92 - n * 4,
-    };
-  });
-
-  if (shoeIdx >= 0) positions[shoeIdx] = { top: 132, left: bottomIdx >= 0 ? 4 : 90, thumbSize: 54 };
-  if (bagIdx >= 0) positions[bagIdx] = { top: 4, left: 96, thumbSize: 48 };
-  if (accessoryIdx >= 0) positions[accessoryIdx] = { top: 2, left: shoeIdx >= 0 || bagIdx >= 0 ? 96 : 100, thumbSize: 36 };
-
-  // Fallback for anything unclassified/uncommon that slipped through
-  // (shouldn't happen — classifyRole always returns 'top' by default —
-  // but keeps this safe if the array and roles ever get out of sync).
-  return positions.map((p, i) => p ?? { top: 20 + i * 20, left: 20, thumbSize: 80 });
-}
 
 export default function OutfitsScreen() {
   const { colors, type } = useAppTheme();
@@ -101,7 +57,14 @@ export default function OutfitsScreen() {
     getAttributeSuggestions().then((s) => { setColorOptions(s.colors); if (s.aesthetics) setAestheticOptions(s.aesthetics); }).catch(() => {});
   }, []);
 
+  // Same fix as ClosetScreen — previously no loading state (so "No
+  // outfits in this category yet" could false-trigger during the
+  // initial fetch on a slow/cold backend) and a silent `catch {}`.
+  const [outfitsLoading, setOutfitsLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
   const load = useCallback(async (cat: string, activeFilters: FilterValues) => {
+    setOutfitsLoading(true);
     try {
       const filterParams: Record<string, string> = {};
       if (activeFilters.season) filterParams.season = activeFilters.season;
@@ -123,7 +86,12 @@ export default function OutfitsScreen() {
         resolved.forEach((item: any) => { map[item.id] = item; });
         setPreviews(map);
       }
-    } catch {}
+    } catch (e: any) {
+      console.error('[OutfitsScreen] load failed:', e);
+    } finally {
+      setOutfitsLoading(false);
+      setHasLoadedOnce(true);
+    }
   }, []);
 
   useFocusEffect(useCallback(() => { load(active, filters); }, [active, filters, load]));
@@ -228,7 +196,15 @@ export default function OutfitsScreen() {
         style={{ flex: 1 }}
         columnWrapperStyle={{ gap: spacing.sm, paddingHorizontal: spacing.lg }}
         contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.lg }}
-        ListEmptyComponent={<Text style={styles.empty}>No outfits in this category yet.</Text>}
+        ListEmptyComponent={
+          outfitsLoading && !hasLoadedOnce ? (
+            <View style={{ paddingTop: spacing.xxl, alignItems: 'center' }}>
+              <ActivityIndicator color={colors.inkMuted} />
+            </View>
+          ) : (
+            <Text style={styles.empty}>No outfits in this category yet.</Text>
+          )
+        }
         ListHeaderComponent={packings.length > 0 ? (
           <View style={{ marginBottom: spacing.md }}>
             <View style={styles.packingHeaderRow}>
@@ -292,7 +268,7 @@ export default function OutfitsScreen() {
                   centered item for a 1-piece outfit. */}
               <TouchableOpacity
                 style={styles.collageWrap}
-                onPress={() => navigation.navigate('CreateOutfit', { editOutfitId: item.id })}
+                onPress={() => navigation.navigate('OutfitDetail', { outfitId: item.id })}
                 activeOpacity={0.85}
               >
                 {shown.length > 1 ? (

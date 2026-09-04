@@ -242,7 +242,7 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={[styles.ootdBanner, dominantColorHex ? { backgroundColor: dominantColorHex } : null]}
           activeOpacity={0.9}
-          onPress={() => (todayOutfit ? navigation.navigate('OutfitsTab', { screen: 'CreateOutfit', params: { editOutfitId: todayOutfit.id } }) : loadTodayOutfit())}
+          onPress={() => (todayOutfit ? navigation.navigate('OutfitsTab', { screen: 'OutfitDetail', params: { outfitId: todayOutfit.id } }) : loadTodayOutfit())}
           disabled={ootdLoading}
         >
           {ootdLoading ? (
