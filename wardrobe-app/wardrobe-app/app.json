@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Wardrobe",
+    "slug": "wardrobe-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used for the Smart Mirror try-on view and adding photos to your closet.",
+        "NSLocationWhenInUseUsageDescription": "Used to show local weather for outfit suggestions."
+      }
+    },
+    "android": {
+      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+    },
+    "web": { "bundler": "metro" },
+    "runtimeVersion": "1.0.0",
+    "plugins": [
+      ["expo-camera", { "cameraPermission": "Used for the Smart Mirror try-on view and adding photos to your closet." }],
+      ["expo-location", { "locationWhenInUsePermission": "Used to show local weather for outfit suggestions." }]
+    ]
+  }
+}
