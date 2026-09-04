@@ -12,6 +12,36 @@ import { useAppTheme } from '../../theme/ThemeContext';
 
 const SEASONS = ['summer', 'autumn', 'winter', 'monsoon', 'spring', 'all_season'];
 
+// Positions items in an overlapping flat-lay arrangement instead of a
+// bordered grid — one "anchor" piece (usually a top/dress) large and
+// upper-center, with the rest layered smaller around it, similar to
+// how a real styled flat-lay photo is composed. Card is 150x187.5;
+// values below are fractions of that. Capped at showing 4 pieces even
+// if an outfit has more, same as before — a 5th+ small item wouldn't
+// read clearly at this card size anyway.
+function collageLayout(count: number): { top: number; left: number; thumbSize: number }[] {
+  if (count === 2) {
+    return [
+      { top: 4, left: 20, thumbSize: 110 },
+      { top: 88, left: 6, thumbSize: 78 },
+    ];
+  }
+  if (count === 3) {
+    return [
+      { top: 2, left: 26, thumbSize: 100 },
+      { top: 92, left: 2, thumbSize: 72 },
+      { top: 100, left: 82, thumbSize: 58 },
+    ];
+  }
+  // 4 pieces
+  return [
+    { top: 0, left: 30, thumbSize: 92 },
+    { top: 86, left: 0, thumbSize: 68 },
+    { top: 108, left: 78, thumbSize: 52 },
+    { top: 6, left: 100, thumbSize: 48 },
+  ];
+}
+
 export default function OutfitsScreen() {
   const { colors, type } = useAppTheme();
   const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
@@ -190,13 +220,6 @@ export default function OutfitsScreen() {
         renderItem={({ item }) => {
           const pieces = (item.itemIds ?? []).map((id: string) => previews[id]).filter(Boolean);
           const shown = pieces.slice(0, 4);
-          const overflow = pieces.length - shown.length;
-          // Backend already sorts newest-first, so the actual gap was
-          // purely visual — nothing distinguished an outfit you made 5
-          // minutes ago from one made weeks back except its position in
-          // the list. A small "New" badge for anything created in the
-          // last 48 hours makes recency actually visible, not just
-          // implied by scroll position.
           const isRecent = item.createdAt && (Date.now() - item.createdAt) < 48 * 60 * 60 * 1000;
           return (
             <View style={styles.card}>
@@ -218,28 +241,29 @@ export default function OutfitsScreen() {
                 <FigmaIcon name="close" size={13} color={colors.white} />
               </TouchableOpacity>
 
-              {/* Whole outfit, not just one piece: a small grid of every
-                  item's thumbnail (up to 4, "+N" for the rest). Falls
-                  back to the single-thumb layout for a 1-piece outfit.
-                  Tapping the pieces opens Edit outfit — previously
-                  there was no way to change WHICH items were in an
-                  outfit after creating it, only rename or delete it. */}
-              <TouchableOpacity onPress={() => navigation.navigate('CreateOutfit', { editOutfitId: item.id })} activeOpacity={0.85}>
+              {/* Whole outfit as one blended flat-lay, not a bordered
+                  grid of separate boxed thumbnails — previously each
+                  item sat in its own bounded, bordered slot (visible
+                  gaps between pieces). Since items already have their
+                  background removed (transparent PNG), they can be
+                  layered directly onto one shared card background at
+                  overlapping positions, the way a real styled flat-lay
+                  photo looks — no visible borders around each piece,
+                  no grid lines separating them. Falls back to a single
+                  centered item for a 1-piece outfit. */}
+              <TouchableOpacity
+                style={styles.collageWrap}
+                onPress={() => navigation.navigate('CreateOutfit', { editOutfitId: item.id })}
+                activeOpacity={0.85}
+              >
                 {shown.length > 1 ? (
-                  <View style={styles.piecesGrid}>
-                    {shown.map((piece: any, idx: number) => (
-                      <View key={idx} style={styles.pieceSlot}>
-                        <ItemThumb item={piece} size={67} />
-                      </View>
-                    ))}
-                    {overflow > 0 && (
-                      <View style={[styles.pieceSlot, styles.overflowSlot]}>
-                        <Text style={styles.overflowText}>+{overflow}</Text>
-                      </View>
-                    )}
-                  </View>
+                  collageLayout(shown.length).map((pos, idx) => (
+                    <View key={idx} style={[styles.collagePiece, { top: pos.top, left: pos.left }]}>
+                      <ItemThumb item={shown[idx]} size={pos.thumbSize} noBorder />
+                    </View>
+                  ))
                 ) : (
-                  <ItemThumb item={shown[0] ?? null} size={150} />
+                  <ItemThumb item={shown[0] ?? null} size={150} noBorder />
                 )}
               </TouchableOpacity>
 
@@ -340,7 +364,7 @@ function makeStyles(colors: any, type: any) {
   tabActive: { backgroundColor: colors.black },
   tabText: { fontSize: 12, color: colors.ink, textTransform: 'capitalize' },
   tabTextActive: { color: colors.white, fontWeight: '700' },
-  card: { flex: 1, backgroundColor: colors.bgSoft, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.sm, alignItems: 'center', position: 'relative' },
+  card: { flex: 1, backgroundColor: colors.cream, borderRadius: radius.md, padding: spacing.sm, alignItems: 'center', position: 'relative' },
   deleteButton: {
     position: 'absolute', top: 6, right: 6, zIndex: 2, width: 26, height: 26, borderRadius: 13,
     backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
@@ -356,10 +380,8 @@ function makeStyles(colors: any, type: any) {
     backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
   },
   shareButtonText: { color: colors.white, fontSize: 14, fontWeight: '700', lineHeight: 15 },
-  piecesGrid: { width: 150, height: 150 * 1.25, flexDirection: 'row', flexWrap: 'wrap', gap: 4, alignContent: 'flex-start' },
-  pieceSlot: { width: 71, height: 71 },
-  overflowSlot: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.cream, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
-  overflowText: { ...type.h3 },
+  collageWrap: { width: 150, height: 150 * 1.25, position: 'relative' },
+  collagePiece: { position: 'absolute' },
   nameRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: spacing.xs, gap: 4 },
   outfitName: { ...type.h3, maxWidth: 118 },
   editIcon: { fontSize: 11, color: colors.inkMuted },

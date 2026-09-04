@@ -1,11 +1,10 @@
 // src/screens/Calendar/CalendarScreen.tsx
-// Home board's Calendar screen — month grid, a dot on any date that
-// already has an "Outfit of the Day" assigned. Tapping a date opens
-// DayOutfitScreen to view/assign/change that day's look. Uses
-// react-native-calendars (added as a new dependency) rather than a
-// hand-built month grid — a real calendar library handles month
-// navigation, locale, and date math correctly instead of reinventing
-// it, which is more reliable than what a from-scratch grid would be.
+// Home board's Calendar screen — month grid where any date with a real
+// assigned outfit (set via "Outfit of the Day" on Home, or manually
+// from DayOutfitScreen) shows an actual small photo collage in that
+// cell instead of just a number. Days with nothing set just show the
+// plain date — this only ever reflects outfits that genuinely exist,
+// never invents placeholder content for empty days.
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,14 +25,11 @@ export default function CalendarScreen() {
   const { colors, type } = useAppTheme();
   const styles = React.useMemo(() => makeStyles(colors), [colors]);
   const [month, setMonth] = useState(todayString().slice(0, 7));
-  const [markedDates, setMarkedDates] = useState<Record<string, any>>({});
-  // Previously the calendar grid only showed a small dot on days with
-  // an assigned outfit — genuinely no way to see WHAT that outfit
-  // actually was without tapping into a separate day screen. This
-  // shows today's real outfit prominently right here, reusing the
-  // same backend endpoint the Home banner uses (same outfit either
-  // place — generating/viewing it in one spot keeps the other in
-  // sync automatically).
+  // Keyed by date ('YYYY-MM-DD') -> the enriched entry from the
+  // backend, which now includes previewItems (up to 2 resolved items)
+  // alongside outfitId/date — that's what lets each cell render an
+  // actual small photo instead of just a dot.
+  const [entriesByDate, setEntriesByDate] = useState<Record<string, any>>({});
   const [todayOutfit, setTodayOutfit] = useState<any>(null);
   const [todayItems, setTodayItems] = useState<any[]>([]);
   const [ootdLoading, setOotdLoading] = useState(false);
@@ -41,13 +37,11 @@ export default function CalendarScreen() {
   const load = useCallback(async (m: string) => {
     try {
       const entries = await listCalendarMonth(m);
-      const marks: Record<string, any> = {};
-      entries.forEach((e: any) => {
-        marks[e.date] = { marked: true, dotColor: colors.lavenderDeep };
-      });
-      setMarkedDates(marks);
+      const byDate: Record<string, any> = {};
+      entries.forEach((e: any) => { byDate[e.date] = e; });
+      setEntriesByDate(byDate);
     } catch {}
-  }, [colors.lavenderDeep]);
+  }, []);
 
   const loadTodayOutfit = useCallback(async () => {
     setOotdLoading(true);
@@ -55,14 +49,46 @@ export default function CalendarScreen() {
       const result = await getTodayOutfit();
       setTodayOutfit(result.outfit ?? null);
       setTodayItems(result.items ?? []);
-    } catch {
+    } catch (e: any) {
+      console.error('[CalendarScreen] getTodayOutfit failed:', e);
       setTodayOutfit(null);
     } finally {
       setOotdLoading(false);
     }
   }, []);
 
+  // When "Outfit of the Day" gets triggered on Home, this screen needs
+  // to reflect it the next time it's actually viewed — useFocusEffect
+  // re-fetches the whole month (and today's outfit) every time this
+  // tab comes into focus, so there's nothing stale to worry about.
   useFocusEffect(useCallback(() => { load(month); loadTodayOutfit(); }, [month, load, loadTodayOutfit]));
+
+  const renderDay = ({ date, state }: { date?: DateData; state?: string }) => {
+    if (!date) return <View style={styles.dayCell} />;
+    const entry = entriesByDate[date.dateString];
+    const isToday = date.dateString === todayString();
+    const isOtherMonth = state === 'disabled';
+    return (
+      <TouchableOpacity
+        style={[styles.dayCell, isToday && styles.dayCellToday]}
+        activeOpacity={0.7}
+        onPress={() => navigation.navigate('DayOutfit', { date: date.dateString })}
+      >
+        <Text style={[styles.dayNumber, isOtherMonth && styles.dayNumberMuted, isToday && styles.dayNumberToday]}>
+          {date.day}
+        </Text>
+        {entry?.previewItems?.length > 0 && (
+          <View style={styles.dayCollage}>
+            {entry.previewItems.slice(0, 2).map((it: any, idx: number) => (
+              <View key={it.id ?? idx} style={[styles.dayCollagePiece, idx === 1 && styles.dayCollagePieceOffset]}>
+                <ItemThumb item={it} size={26} noBorder />
+              </View>
+            ))}
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -73,22 +99,17 @@ export default function CalendarScreen() {
       <Calendar
         current={`${month}-01`}
         onMonthChange={(d: DateData) => setMonth(d.dateString.slice(0, 7))}
-        onDayPress={(d: DateData) => navigation.navigate('DayOutfit', { date: d.dateString })}
-        markedDates={{
-          ...markedDates,
-          [todayString()]: { ...(markedDates[todayString()] ?? {}), selected: true, selectedColor: colors.lavender },
-        }}
+        dayComponent={renderDay}
         theme={{
           backgroundColor: colors.bg,
           calendarBackground: colors.bg,
           textSectionTitleColor: colors.inkMuted,
-          selectedDayBackgroundColor: colors.lavender,
-          selectedDayTextColor: colors.ink,
-          todayTextColor: colors.lavenderDeep,
-          dayTextColor: colors.ink,
+          textDayHeaderFontSize: 12,
+          textDayHeaderFontWeight: '600',
           monthTextColor: colors.ink,
-          arrowColor: colors.ink,
-          dotColor: colors.lavenderDeep,
+          textMonthFontWeight: '700',
+          textMonthFontSize: 16,
+          arrowColor: colors.inkMuted,
         }}
         style={styles.calendar}
       />
@@ -124,7 +145,17 @@ export default function CalendarScreen() {
 function makeStyles(colors: any) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
-    calendar: { marginHorizontal: spacing.lg, borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
+    calendar: { marginHorizontal: spacing.sm, borderRadius: radius.lg, overflow: 'hidden' },
+    dayCell: {
+      width: 46, height: 58, alignItems: 'center', paddingTop: 4, borderRadius: radius.sm, overflow: 'hidden',
+    },
+    dayCellToday: { backgroundColor: colors.bgSoft },
+    dayNumber: { fontSize: 12, color: colors.ink, fontWeight: '500' },
+    dayNumberMuted: { color: colors.border },
+    dayNumberToday: { color: colors.lavenderDeep, fontWeight: '700' },
+    dayCollage: { width: 40, height: 34, marginTop: 2, position: 'relative' },
+    dayCollagePiece: { position: 'absolute', top: 0, left: 4 },
+    dayCollagePieceOffset: { top: 8, left: 14 },
     todaySectionTitle: { fontSize: 14, fontWeight: '700', color: colors.ink, paddingHorizontal: spacing.lg, marginTop: spacing.lg, marginBottom: spacing.sm },
     todayCard: {
       flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border,

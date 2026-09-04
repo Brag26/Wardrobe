@@ -2,13 +2,33 @@
 // Light theme colors read directly from the actual Figma screens. Dark
 // theme lives alongside it in darkColors — see ThemeContext.tsx for how
 // screens switch between them at runtime.
+//
+// v2 — design refresh toward a more minimal/cohesive, less "bright
+// pastel scrapbook" feel. Two concrete changes, not a guess-and-hope
+// repaint:
+//   1. The five accent pastels (lavender/pink/peach/mint/sky) were each
+//      picked independently and didn't read as one family — desaturated
+//      them toward a shared warm-neutral undertone so they feel curated
+//      together instead of scattered. lavenderDeep (the app's actual
+//      primary accent — active tab, calendar highlight, badges) went
+//      from a brighter candy-purple to a more grounded, designer-ish
+//      violet.
+//   2. Typography had NO letterSpacing anywhere and NO lineHeight on
+//      most sizes — the exact gap that made chat bubbles look cramped
+//      (fixed there already) is fixed here at the SOURCE, so every
+//      screen using `type.*` gets proper line-height automatically,
+//      not just the one place that was manually patched. Headers also
+//      get slightly negative tracking, a standard technique for a
+//      tighter, more premium feel on large text.
+// Every existing key name is preserved — only values changed — so no
+// other file needs to change to pick this up.
 
 export const lightColors = {
   bg: '#FFFDFB',
   bgSoft: '#FBF7F3',
   cream: '#FAF3EC',
   card: '#FFFFFF',
-  border: '#F0E8DF',
+  border: '#EFE7DD',
   ink: '#1F1B1A',
   inkMuted: '#8B837C',
   black: '#161213',
@@ -18,13 +38,13 @@ export const lightColors = {
   mascotShadow: '#D2CCC3',
 
   accent: '#161213',
-  lavender: '#EDE3F5',
-  lavenderDeep: '#C9A9E8',
-  pink: '#FCE4E9',
-  pinkDeep: '#F2A0B3',
-  peach: '#FDEAD9',
-  mint: '#E1F2E6',
-  sky: '#E1EEF7',
+  lavender: '#E9E0F3',
+  lavenderDeep: '#9B82C4',
+  pink: '#F7DFE4',
+  pinkDeep: '#D98CA0',
+  peach: '#F6E2CF',
+  mint: '#DDECE3',
+  sky: '#DDE9F2',
 
   success: '#3B8352',
   danger: '#C0433A',
@@ -32,9 +52,9 @@ export const lightColors = {
   heart: '#E8536A',
 
   chipBg: '#FBF7F3',
-  chipBorder: '#F0E8DF',
-  chipSelectedBg: '#EDE3F5',
-  chipSelectedBorder: '#C9A9E8',
+  chipBorder: '#EFE7DD',
+  chipSelectedBg: '#E9E0F3',
+  chipSelectedBorder: '#9B82C4',
   chipSelectedText: '#161213',
 };
 
@@ -53,13 +73,13 @@ export const darkColors: typeof lightColors = {
   mascotShadow: '#332C2D',
 
   accent: '#F3EFEE',
-  lavender: '#3A2F44',
-  lavenderDeep: '#8E6FB0',
-  pink: '#3D2830',
-  pinkDeep: '#C56E85',
-  peach: '#3C2E22',
-  mint: '#1E3327',
-  sky: '#1E2C38',
+  lavender: '#372D42',
+  lavenderDeep: '#8267AD',
+  pink: '#3B2830',
+  pinkDeep: '#BC7186',
+  peach: '#3A2C22',
+  mint: '#1E3227',
+  sky: '#1E2B38',
 
   success: '#5CA876',
   danger: '#E06A61',
@@ -68,8 +88,8 @@ export const darkColors: typeof lightColors = {
 
   chipBg: '#1D1919',
   chipBorder: '#332C2D',
-  chipSelectedBg: '#3A2F44',
-  chipSelectedBorder: '#8E6FB0',
+  chipSelectedBg: '#372D42',
+  chipSelectedBorder: '#8267AD',
   chipSelectedText: '#F3EFEE',
 };
 
@@ -79,15 +99,15 @@ export const darkColors: typeof lightColors = {
 export const colors = lightColors;
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 };
-export const radius = { sm: 10, md: 16, lg: 22, pill: 999 };
+export const radius = { sm: 10, md: 14, lg: 20, pill: 999 };
 
 export function buildType(c: typeof lightColors) {
   return {
-    h1: { fontSize: 26, fontWeight: '700' as const, color: c.ink },
-    h2: { fontSize: 20, fontWeight: '700' as const, color: c.ink },
-    h3: { fontSize: 16, fontWeight: '600' as const, color: c.ink },
-    body: { fontSize: 14, fontWeight: '400' as const, color: c.ink },
-    muted: { fontSize: 12, fontWeight: '400' as const, color: c.inkMuted },
+    h1: { fontSize: 28, fontWeight: '700' as const, color: c.ink, letterSpacing: -0.4, lineHeight: 34 },
+    h2: { fontSize: 20, fontWeight: '700' as const, color: c.ink, letterSpacing: -0.2, lineHeight: 26 },
+    h3: { fontSize: 16, fontWeight: '600' as const, color: c.ink, letterSpacing: -0.1, lineHeight: 21 },
+    body: { fontSize: 14, fontWeight: '400' as const, color: c.ink, lineHeight: 20 },
+    muted: { fontSize: 12, fontWeight: '400' as const, color: c.inkMuted, lineHeight: 16 },
   };
 }
 export const type = buildType(lightColors);

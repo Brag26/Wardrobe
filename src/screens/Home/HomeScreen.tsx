@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, FlatList, Switch, Animated } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { FigmaIcon } from '../../components/icons/FigmaIcon';
 import { getClosetOverview, getWardrobeItems, listOutfits, setItemFavorite, getItemsByIds, getTodayOutfit } from '../../api/wardrobeApi';
 import { useAuthStore } from '../../store/authStore';
@@ -52,7 +54,13 @@ export default function HomeScreen() {
         setOotdMessage(result.message ?? "Couldn't generate an outfit right now.");
       }
     } catch (e: any) {
-      setOotdMessage("Couldn't load today's outfit — try again in a bit.");
+      // Previously this swallowed the real error entirely — same
+      // silent-failure pattern found (and fixed) in aiStylist.service.ts
+      // earlier, recurring here in new code. Logging it now so a real
+      // failure shows up in the dev console instead of just "nothing
+      // happened" with zero trace of why.
+      console.error('[HomeScreen] getTodayOutfit failed:', e);
+      setOotdMessage(e?.message ? `Couldn't load today's outfit: ${e.message}` : "Couldn't load today's outfit — try again in a bit.");
     } finally {
       setOotdLoading(false);
     }
@@ -81,7 +89,21 @@ export default function HomeScreen() {
     { label: 'Plan trip outfits', icon: 'briefcase-outline' as const, onPress: () => navigation.navigate('OutfitsTab', { screen: 'StartPacking' }) },
   ];
 
+  // Previously this swallowed errors completely (`catch {}`) — the
+  // same silent-failure pattern found and fixed repeatedly elsewhere
+  // this session. If the backend was slow to respond (a cold Render
+  // instance waking up can take 30-60+ seconds after being idle), the
+  // screen just sat there empty with zero explanation and zero trace
+  // of why. Now logs the real error AND shows an honest, elapsed-
+  // time-aware message if it's taking a while, instead of looking
+  // broken with no signal that anything's happening.
+  const [homeLoading, setHomeLoading] = useState(true);
+  const [homeLoadElapsed, setHomeLoadElapsed] = useState(0);
+
   const load = useCallback(async () => {
+    setHomeLoading(true);
+    const startedAt = Date.now();
+    const tick = setInterval(() => setHomeLoadElapsed(Math.round((Date.now() - startedAt) / 1000)), 1000);
     try {
       const [ov, out, its] = await Promise.all([
         getClosetOverview(),
@@ -99,7 +121,13 @@ export default function HomeScreen() {
         resolved.forEach((item: any) => { map[item.id] = item; });
         setOutfitPreviews(map);
       }
-    } catch {}
+    } catch (e: any) {
+      console.error('[HomeScreen] load failed:', e);
+    } finally {
+      clearInterval(tick);
+      setHomeLoadElapsed(0);
+      setHomeLoading(false);
+    }
   }, [outfitTab, itemTab]);
 
   useEffect(() => { load(); }, [load]);
@@ -121,6 +149,16 @@ export default function HomeScreen() {
   const browseCategories = overview?.itemsByCategory
     ? Object.entries(overview.itemsByCategory).sort((a: any, b: any) => b[1] - a[1]).slice(0, 10)
     : [];
+  // Full-bleed category cards need a real cover photo per category —
+  // previously these cards had no photo at all (just an icon + text
+  // in a bordered box). Uses the first actual item in each category
+  // as its cover, so it's a real photo from the person's own closet,
+  // not a placeholder or stock image.
+  const categoryCoverItem = React.useMemo(() => {
+    const map: Record<string, any> = {};
+    items.forEach((i) => { if (i.category && !map[i.category]) map[i.category] = i; });
+    return map;
+  }, [items]);
   // "Uncategorized" (Home board): items whose category is missing or
   // empty — category is required at creation time, so this is mainly
   // a safety net for imported/legacy data rather than a common bucket,
@@ -149,6 +187,15 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      {homeLoading && homeLoadElapsed > 4 && (
+        <View style={styles.coldStartBanner}>
+          <Text style={styles.coldStartBannerText}>
+            {homeLoadElapsed > 20
+              ? "Still waking things up — the server's coming online after being idle, hang tight…"
+              : 'Loading your closet…'}
+          </Text>
+        </View>
+      )}
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -338,16 +385,32 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.sm }}
           ListEmptyComponent={<Text style={styles.empty}>Add some items to see your categories here</Text>}
-          renderItem={({ item: [cat, count] }: any) => (
-            <TouchableOpacity
-              style={styles.categoryCard}
-              onPress={() => navigation.navigate('ClosetTab', { screen: 'ClosetHome', params: { initialCategory: cat } })}
-            >
-              <Ionicons name="pricetag-outline" size={20} color={colors.ink} />
-              <Text style={styles.categoryCardLabel} numberOfLines={1}>{cat.replace(/_/g, ' ')}</Text>
-              <Text style={styles.categoryCardCount}>{count} item{count === 1 ? '' : 's'}</Text>
-            </TouchableOpacity>
-          )}
+          renderItem={({ item: [cat, count] }: any) => {
+            const cover = categoryCoverItem[cat];
+            return (
+              <TouchableOpacity
+                style={styles.categoryCard}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('ClosetTab', { screen: 'ClosetHome', params: { initialCategory: cat } })}
+              >
+                {cover?.imageUrl ? (
+                  <Image source={{ uri: cover.imageUrl }} style={styles.categoryCardImage} cachePolicy="memory-disk" transition={150} />
+                ) : (
+                  <View style={[styles.categoryCardImage, styles.categoryCardImageFallback]}>
+                    <Ionicons name="pricetag-outline" size={22} color={colors.inkMuted} />
+                  </View>
+                )}
+                <LinearGradient
+                  colors={['transparent', 'rgba(0,0,0,0.72)']}
+                  style={styles.categoryCardScrim}
+                />
+                <View style={styles.categoryCardTextWrap}>
+                  <Text style={styles.categoryCardLabel} numberOfLines={1}>{cat.replace(/_/g, ' ')}</Text>
+                  <Text style={styles.categoryCardCount}>{count} item{count === 1 ? '' : 's'}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          }}
         />
 
         {uncategorizedItems.length > 0 && (
@@ -415,6 +478,8 @@ export default function HomeScreen() {
 function makeStyles(colors: any, type: any) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
+    coldStartBanner: { backgroundColor: colors.cream, paddingVertical: 6, paddingHorizontal: spacing.lg },
+    coldStartBannerText: { fontSize: 11, color: colors.inkMuted, textAlign: 'center' },
     scroll: { paddingBottom: spacing.xxl },
     topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
     greeting: { ...type.h1 },
@@ -471,11 +536,14 @@ function makeStyles(colors: any, type: any) {
     emptyCta: { backgroundColor: colors.black, borderRadius: radius.pill, paddingVertical: 14, paddingHorizontal: spacing.xl },
     emptyCtaText: { color: colors.white, fontWeight: '700', fontSize: 14 },
     categoryCard: {
-      width: 96, backgroundColor: colors.bgSoft, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
-      paddingVertical: spacing.sm, alignItems: 'center', gap: 2,
+      width: 112, height: 140, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.bgSoft,
     },
-    categoryCardLabel: { fontSize: 11, fontWeight: '600', color: colors.ink, textTransform: 'capitalize', textAlign: 'center' },
-    categoryCardCount: { fontSize: 9, color: colors.inkMuted },
+    categoryCardImage: { width: '100%', height: '100%', position: 'absolute' },
+    categoryCardImageFallback: { alignItems: 'center', justifyContent: 'center' },
+    categoryCardScrim: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '55%' },
+    categoryCardTextWrap: { position: 'absolute', bottom: spacing.sm, left: spacing.sm, right: spacing.sm },
+    categoryCardLabel: { fontSize: 12, fontWeight: '700', color: '#fff', textTransform: 'capitalize' },
+    categoryCardCount: { fontSize: 10, color: 'rgba(255,255,255,0.85)', marginTop: 1 },
     signOutLink: { alignSelf: 'center', marginTop: spacing.xl },
     signOutText: { fontSize: 11, color: colors.inkMuted, textDecorationLine: 'underline' },
     fabBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.25)' },

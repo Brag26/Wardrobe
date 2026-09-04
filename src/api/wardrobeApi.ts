@@ -9,6 +9,37 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+
+// Photos come straight off the phone's camera — often 3000px+ wide,
+// several MB — but every place that displays them shows a thumbnail
+// well under 300px. Previously the full original got uploaded and
+// re-downloaded at that full resolution every time, everywhere,
+// forever — real cost in upload time, storage, and (the actual
+// complaint) how long images take to load throughout the app,
+// especially on a slower connection. Resizing to a sensible max
+// dimension before upload fixes it at the source, for every future
+// load, not just repeat views (that's what ItemThumb's expo-image
+// caching handles separately).
+//
+// Wrapped in try/catch with a same-URI fallback on purpose: if this
+// fails for any reason (a corrupted photo, an unexpected file type,
+// an API surface that behaves differently on some device), the
+// person's item still saves with their original photo rather than
+// the whole upload breaking over what's meant to be a size
+// optimization, not a required step.
+async function resizeForUpload(localImageUri: string, maxDimension = 1200): Promise<string> {
+  try {
+    const context = ImageManipulator.manipulate(localImageUri);
+    context.resize({ width: maxDimension });
+    const rendered = await context.renderAsync();
+    const result = await rendered.saveAsync({ compress: 0.85, format: SaveFormat.JPEG });
+    return result.uri;
+  } catch (err) {
+    console.warn('[resizeForUpload] Resize failed, uploading original image instead:', err);
+    return localImageUri;
+  }
+}
 
 // Auto-picks the right host for wherever this is running:
 //   - Physical device via Expo Go: extracts the LAN IP from Expo's own
@@ -212,7 +243,8 @@ export async function uploadWardrobeItem(
   // its metadata. A real photo is a nice-to-have here, not a blocker.
   if (localImageUri) {
     try {
-      const photoBlob = await (await fetch(localImageUri)).blob();
+      const resizedUri = await resizeForUpload(localImageUri);
+      const photoBlob = await (await fetch(resizedUri)).blob();
       await fetchWithTimeout(uploadUrl, { method: 'PUT', body: photoBlob, headers: { 'Content-Type': 'image/jpeg' } });
     } catch (err) {
       console.warn('[uploadWardrobeItem] Photo upload failed, saving item without a photo:', err);
@@ -239,7 +271,8 @@ export async function replaceItemPhoto(itemId: string, localImageUri: string) {
   const { key, uploadUrl } = await authedFetch('/wardrobe/upload-url', {
     method: 'POST', body: JSON.stringify({ fileExtension: 'jpg' }),
   });
-  const photoBlob = await (await fetch(localImageUri)).blob();
+  const resizedUri = await resizeForUpload(localImageUri);
+  const photoBlob = await (await fetch(resizedUri)).blob();
   await fetchWithTimeout(uploadUrl, { method: 'PUT', body: photoBlob, headers: { 'Content-Type': 'image/jpeg' } });
   return authedFetch(`/wardrobe/items/${itemId}/photo`, { method: 'POST', body: JSON.stringify({ s3Key: key }) });
 }
@@ -278,7 +311,8 @@ export async function uploadWardrobeItemsBulk(
     entries.map(async (entry, idx) => {
       if (!entry.localImageUri) return;
       try {
-        const photoBlob = await (await fetch(entry.localImageUri)).blob();
+        const resizedUri = await resizeForUpload(entry.localImageUri);
+        const photoBlob = await (await fetch(resizedUri)).blob();
         await fetchWithTimeout(urls[idx].uploadUrl, { method: 'PUT', body: photoBlob, headers: { 'Content-Type': 'image/jpeg' } });
       } catch (err) {
         console.warn('[uploadWardrobeItemsBulk] Photo upload failed for one item, saving without a photo:', err);
@@ -323,7 +357,8 @@ export async function uploadPackingCoverImage(localImageUri: string): Promise<st
   const { key, uploadUrl, imageUrl } = await authedFetch('/wardrobe/upload-url', {
     method: 'POST', body: JSON.stringify({ fileExtension: 'jpg' }),
   });
-  const photoBlob = await (await fetch(localImageUri)).blob();
+  const resizedUri = await resizeForUpload(localImageUri);
+  const photoBlob = await (await fetch(resizedUri)).blob();
   await fetchWithTimeout(uploadUrl, { method: 'PUT', body: photoBlob, headers: { 'Content-Type': 'image/jpeg' } });
   return imageUrl;
 }

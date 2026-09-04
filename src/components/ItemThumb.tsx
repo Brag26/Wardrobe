@@ -8,7 +8,8 @@
 // is what was happening with every seeded/imported item, since they
 // all point at S3 URLs that can't actually be reached yet.
 import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { colors, radius } from '../theme/theme';
 
 // Exact-match first, then PREFIX fallback (e.g. 'dress_bodycon' falls
@@ -51,15 +52,16 @@ interface ItemThumbProps {
   size?: number;
   onPress?: () => void;
   selected?: boolean;
+  noBorder?: boolean;
 }
 
-export function ItemThumb({ item, size = 72, selected }: ItemThumbProps) {
+export function ItemThumb({ item, size = 72, selected, noBorder }: ItemThumbProps) {
   const [photoFailed, setPhotoFailed] = useState(false);
   const height = Math.round(size * 1.25);
 
   if (!item) {
     return (
-      <View style={[styles.wrap, styles.empty, { width: size, height }]}>
+      <View style={[styles.wrap, noBorder && styles.noBorder, styles.empty, { width: size, height }]}>
         <Text style={{ color: colors.inkMuted, fontSize: 20 }}>?</Text>
       </View>
     );
@@ -70,15 +72,18 @@ export function ItemThumb({ item, size = 72, selected }: ItemThumbProps) {
   const bg = COLOR_HEX[item.color] ?? '#999';
 
   return (
-    <View style={[styles.wrap, { width: size, height }, selected && styles.selected]}>
+    <View style={[styles.wrap, noBorder && styles.noBorder, { width: size, height }, selected && styles.selected]}>
       {showRealPhoto ? (
         <Image
           source={{ uri: item.imageUrl }}
           style={styles.image}
+          contentFit={noBorder ? 'contain' : 'cover'}
+          cachePolicy="memory-disk"
+          transition={150}
           onError={() => setPhotoFailed(true)}
         />
       ) : (
-        <View style={[styles.card, { backgroundColor: bg }]}>
+        <View style={[styles.card, { backgroundColor: noBorder ? 'transparent' : bg }]}>
           <Text style={{ fontSize: size * 0.35 }}>{getCategoryEmoji(item.category)}</Text>
         </View>
       )}
@@ -88,6 +93,15 @@ export function ItemThumb({ item, size = 72, selected }: ItemThumbProps) {
 
 const styles = StyleSheet.create({
   wrap: { borderRadius: radius.md, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
+  // Collage mode (see OutfitsScreen) — items are meant to blend
+  // directly onto the shared card background as one composed flat-lay,
+  // not sit in individual bordered boxes. Since items already have
+  // their background removed (transparent PNG), dropping the border/
+  // fill here lets the garment's real silhouette show through instead
+  // of a rectangle around it. resizeMode 'contain' also matters here —
+  // 'cover' (the default elsewhere) would crop a transparent-background
+  // item awkwardly; 'contain' keeps the whole garment visible.
+  noBorder: { borderWidth: 0, borderRadius: 0 },
   selected: { borderColor: colors.black, borderWidth: 2 },
   empty: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgSoft },
   card: { flex: 1, alignItems: 'center', justifyContent: 'center' },

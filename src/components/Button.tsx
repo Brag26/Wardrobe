@@ -43,5 +43,5 @@ export function Button({ label, onPress, variant = 'primary', loading, disabled 
 const styles = StyleSheet.create({
   base: { paddingVertical: 14, paddingHorizontal: spacing.lg, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   disabled: { opacity: 0.5 },
-  label: { fontSize: 14, fontWeight: '600' },
+  label: { fontSize: 14, fontWeight: '600', letterSpacing: 0.2 },
 });
