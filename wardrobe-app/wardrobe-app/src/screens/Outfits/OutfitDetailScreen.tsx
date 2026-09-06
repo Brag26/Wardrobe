@@ -39,12 +39,12 @@ export default function OutfitDetailScreen() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (isPoll = false) => {
     if (!outfitId) {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!isPoll) setLoading(true);
     try {
       const o = await getOutfit(outfitId);
       setOutfit(o);
@@ -54,13 +54,37 @@ export default function OutfitDetailScreen() {
       }
     } catch (e: any) {
       console.error('[OutfitDetailScreen] load failed:', e);
-      Alert.alert("Couldn't load this outfit", e.message ?? 'Try again in a bit.');
+      if (!isPoll) Alert.alert("Couldn't load this outfit", e.message ?? 'Try again in a bit.');
     } finally {
-      setLoading(false);
+      if (!isPoll) setLoading(false);
     }
   }, [outfitId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // Previously this only ever fetched once per visit — "Photos still
+  // processing..." was a permanent, frozen snapshot from the moment
+  // you opened the screen, even if the backend finished seconds later.
+  // The only way to see the update was leaving and coming back,
+  // forcing useFocusEffect to refire. Now it genuinely re-checks every
+  // 4s while anything's still pending, and stops once everything's
+  // done (or after 2 minutes, matching the same honest-timeout pattern
+  // used for the Add Item background-removal wait) rather than
+  // polling forever in the background.
+  React.useEffect(() => {
+    const stillPending = items.some((i) => i.backgroundRemoval?.status !== 'done');
+    if (!stillPending || items.length === 0) return;
+
+    const startedAt = Date.now();
+    const interval = setInterval(() => {
+      if (Date.now() - startedAt > 120_000) {
+        clearInterval(interval);
+        return;
+      }
+      load(true);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [items, load]);
 
   const handleShare = async () => {
     if (!outfit) return;

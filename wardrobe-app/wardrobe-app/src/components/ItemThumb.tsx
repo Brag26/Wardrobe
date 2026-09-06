@@ -9,7 +9,8 @@
 // all point at S3 URLs that can't actually be reached yet.
 import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
-import { colors, radius } from '../theme/theme';
+import { radius } from '../theme/theme';
+import { useAppTheme } from '../theme/ThemeContext';
 
 // Exact-match first, then PREFIX fallback (e.g. 'dress_bodycon' falls
 // back to the 'dress' emoji, 'bra_sports' falls back to 'bra') — same
@@ -55,6 +56,8 @@ interface ItemThumbProps {
 }
 
 export function ItemThumb({ item, size = 72, selected, noBorder }: ItemThumbProps) {
+  const { colors } = useAppTheme();
+  const styles = React.useMemo(() => makeStyles(colors), [colors]);
   const [photoFailed, setPhotoFailed] = useState(false);
   const height = Math.round(size * 1.25);
 
@@ -88,19 +91,21 @@ export function ItemThumb({ item, size = 72, selected, noBorder }: ItemThumbProp
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: { borderRadius: radius.md, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
-  // Collage mode (see OutfitsScreen) — items are meant to blend
-  // directly onto the shared card background as one composed flat-lay,
-  // not sit in individual bordered boxes. Since items already have
-  // their background removed (transparent PNG), dropping the border/
-  // fill here lets the garment's real silhouette show through instead
-  // of a rectangle around it. resizeMode 'contain' also matters here —
-  // 'cover' (the default elsewhere) would crop a transparent-background
-  // item awkwardly; 'contain' keeps the whole garment visible.
-  noBorder: { borderWidth: 0, borderRadius: 0 },
-  selected: { borderColor: colors.black, borderWidth: 2 },
-  empty: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgSoft },
-  card: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  image: { width: '100%', height: '100%' },
-});
+function makeStyles(colors: any) {
+  return StyleSheet.create({
+    wrap: { borderRadius: radius.md, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
+    // Collage mode (see OutfitsScreen) — items are meant to blend
+    // directly onto the shared card background as one composed flat-lay,
+    // not sit in individual bordered boxes. Since items already have
+    // their background removed (transparent PNG), dropping the border/
+    // fill here lets the garment's real silhouette show through instead
+    // of a rectangle around it. resizeMode 'contain' also matters here —
+    // 'cover' (the default elsewhere) would crop a transparent-background
+    // item awkwardly; 'contain' keeps the whole garment visible.
+    noBorder: { borderWidth: 0, borderRadius: 0 },
+    selected: { borderColor: colors.black, borderWidth: 2 },
+    empty: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgSoft },
+    card: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    image: { width: '100%', height: '100%' },
+  });
+}

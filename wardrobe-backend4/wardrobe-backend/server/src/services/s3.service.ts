@@ -27,6 +27,7 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
+import sharp from 'sharp';
 import { getWardrobeItemsByIds, updateWardrobeItem } from './mongodb.service';
 
 const REGION = process.env.AWS_REGION ?? 'ap-south-1';
@@ -162,6 +163,28 @@ async function runGeminiBackgroundRemoval(imageUrl: string, apiKey: string): Pro
   return Buffer.from(inline.data, 'base64');
 }
 
+// Client uploads originals via a presigned URL with no Cache-Control
+// header (adding one there would require the app to send a matching
+// header too, just to make the S3 signature validate — a client
+// change we specifically want to avoid right now). This adds the same
+// long-cache header retroactively via a pure backend self-copy
+// instead — zero app involvement, so an item still sitting in
+// 'pending'/'failed' (still showing its original, unprocessed photo)
+// gets the same repeat-load speedup as a successfully processed one.
+async function addCacheHeadersRetroactively(key: string): Promise<void> {
+  try {
+    await s3.send(new CopyObjectCommand({
+      Bucket: BUCKET,
+      CopySource: `${BUCKET}/${key}`,
+      Key: key,
+      MetadataDirective: 'REPLACE',
+      CacheControl: 'public, max-age=31536000, immutable',
+    }));
+  } catch (err) {
+    console.warn(`[s3.service] Could not add cache headers to ${key}:`, err);
+  }
+}
+
 export async function removeBackground(originalKey: string, itemId: string, userId: string): Promise<{ processedKey: string }> {
   const provider = process.env.BG_REMOVAL_PROVIDER ?? 'none';
   const processedKey = `wardrobe/${userId}/${itemId}/processed.png`;
@@ -193,8 +216,37 @@ export async function removeBackground(originalKey: string, itemId: string, user
     throw new Error(`Unknown BG_REMOVAL_PROVIDER: ${provider}`);
   }
 
+  // Resized server-side (Node, via sharp) before ever reaching S3 —
+  // this runs entirely on the backend, never touches the app, so it
+  // carries none of the risk a client-side native image-resize module
+  // did (that approach caused a real crash and was reverted). Every
+  // closet thumbnail displays well under 300px; a removal provider can
+  // return images several MB at full resolution, all of it wasted
+  // bandwidth every time it's loaded. 1200px on the long edge is
+  // generous headroom for the largest display size (the Outfit detail
+  // screen's 300px collage) while cutting typical file size
+  // dramatically. withoutEnlargement avoids upscaling anything already
+  // smaller. Falls back to the unresized buffer if sharp fails for any
+  // reason — a size optimization should never be the thing that
+  // breaks background removal entirely.
+  let finalBuffer = resultBuffer;
+  try {
+    finalBuffer = await sharp(resultBuffer)
+      .resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true })
+      .png()
+      .toBuffer();
+  } catch (err) {
+    console.warn('[s3.service] Server-side resize failed, storing original size instead:', err);
+  }
+
   await s3.send(new PutObjectCommand({
-    Bucket: BUCKET, Key: processedKey, Body: resultBuffer, ContentType: 'image/png',
+    Bucket: BUCKET, Key: processedKey, Body: finalBuffer, ContentType: 'image/png',
+    // These almost never change once processed (a resave creates a
+    // NEW key entirely, per replaceItemPhoto), so a long, immutable
+    // cache is accurate, not just optimistic. This is what actually
+    // fixes repeat-load speed — the OS/browser's own standard HTTP
+    // cache honors this with zero app-side code needed at all.
+    CacheControl: 'public, max-age=31536000, immutable',
   }));
 
   return { processedKey };
@@ -228,6 +280,7 @@ export async function ensureBackgroundRemovalForItems(userId: string, itemIds: s
 }
 
 export async function processBackgroundRemovalInBackground(userId: string, itemId: string, s3Key: string) {
+  addCacheHeadersRetroactively(s3Key); // fire-and-forget — helps the original load fast even before/if removal finishes
   try {
     await updateWardrobeItem(userId, itemId, { backgroundRemoval: { status: 'processing', error: null } });
     const { processedKey } = await removeBackground(s3Key, itemId, userId);
