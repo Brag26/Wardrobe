@@ -8,6 +8,7 @@ import {
   listWardrobeItems, createOutfit, getOutfit,
 } from '../services/mongodb.service';
 import { getUserProfile } from '../services/otp.service';
+import { ensureBackgroundRemovalForItems } from '../services/s3.service';
 import {
   pickOutfitItems, buildReasoningSteps, generateOutfitStory, computeMatchScore, categoryInSlot,
 } from '../services/aiStylist.service';
@@ -72,6 +73,7 @@ export async function generateOutfitForSession(req: Request, res: Response) {
     createdAt: now, updatedAt: now,
   };
   await createOutfit(outfit);
+  ensureBackgroundRemovalForItems(userId, outfit.itemIds);
 
   await updateStylingSession(userId, id, { status: 'ready', resultOutfitId: outfit.id, reasoningSteps });
 

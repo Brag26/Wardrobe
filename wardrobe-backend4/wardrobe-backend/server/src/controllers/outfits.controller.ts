@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { createOutfit, getOutfitsForUser, getOutfit, updateOutfit, softDeleteOutfit, getOutfitCategories } from '../services/mongodb.service';
 import { getWardrobeItemsByIds } from '../services/mongodb.service';
+import { ensureBackgroundRemovalForItems } from '../services/s3.service';
 import { Outfit } from '../types/domain';
 
 function requireUser(req: Request, res: Response): string | null {
@@ -81,6 +82,7 @@ export async function createManualOutfit(req: Request, res: Response) {
     createdAt: now, updatedAt: now,
   };
   await createOutfit(outfit);
+  ensureBackgroundRemovalForItems(userId, outfit.itemIds); // fire-and-forget — catches up any item whose photo never finished processing
   res.status(201).json(outfit);
 }
 
@@ -91,6 +93,10 @@ export async function updateOutfitDetail(req: Request, res: Response) {
   const patch: Record<string, any> = {};
   for (const key of allowed) if (key in req.body) patch[key] = req.body[key];
   await updateOutfit(userId, req.params.id, patch);
+  // Editing an outfit's pieces (adding a different item) is just as
+  // real a "pulled into an outfit" moment as creating one from
+  // scratch — same catch-up trigger applies here too.
+  if (patch.itemIds) ensureBackgroundRemovalForItems(userId, patch.itemIds);
   const outfit = await getOutfit(userId, req.params.id);
   res.json(outfit);
 }

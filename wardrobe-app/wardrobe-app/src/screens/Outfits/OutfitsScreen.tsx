@@ -234,7 +234,13 @@ export default function OutfitsScreen() {
         ) : null}
         renderItem={({ item }) => {
           const pieces = (item.itemIds ?? []).map((id: string) => previews[id]).filter(Boolean);
-          const shown = pieces.slice(0, 4);
+          // Same fix as OutfitDetailScreen — an item whose background
+          // removal hasn't finished/failed still shows its RAW photo
+          // (visible white background, sometimes the model still in
+          // frame). Left in the overlapping pile, that opaque photo
+          // hides whatever's stacked underneath it — only genuinely
+          // processed items go into the collage here.
+          const shown = pieces.filter((p: any) => p.backgroundRemoval?.status === 'done').slice(0, 4);
           const isRecent = item.createdAt && (Date.now() - item.createdAt) < 48 * 60 * 60 * 1000;
           return (
             <View style={styles.card}>

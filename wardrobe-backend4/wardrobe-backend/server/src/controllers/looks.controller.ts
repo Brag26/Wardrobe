@@ -15,6 +15,7 @@ import {
   getDailyPick, createDailyPick,
 } from '../services/mongodb.service';
 import { pickOutfitItems, computeMatchScore, generateOutfitStory } from '../services/aiStylist.service';
+import { ensureBackgroundRemovalForItems } from '../services/s3.service';
 import { Outfit, Occasion, DailyPick } from '../types/domain';
 
 const CATEGORY_OCCASION_MAP: Record<string, Occasion | null> = {
@@ -123,5 +124,6 @@ export async function saveManualOutfit(req: Request, res: Response) {
     createdAt: now, updatedAt: now,
   };
   await createOutfit(outfit);
+  ensureBackgroundRemovalForItems(userId, itemIds);
   res.status(201).json(outfit);
 }

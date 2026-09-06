@@ -27,6 +27,7 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
+import { getWardrobeItemsByIds, updateWardrobeItem } from './mongodb.service';
 
 const REGION = process.env.AWS_REGION ?? 'ap-south-1';
 const BUCKET = process.env.AWS_S3_BUCKET ?? '';
@@ -197,4 +198,47 @@ export async function removeBackground(originalKey: string, itemId: string, user
   }));
 
   return { processedKey };
+}
+
+// Runs the same background-removal pipeline as adding a NEW item, but
+// triggered by pulling an EXISTING item into an outfit instead. Real
+// gap this closes: an item could sit with backgroundRemoval stuck on
+// "pending" or "failed" indefinitely — nothing ever automatically
+// retried it, so the only way to fix it was manually reopening that
+// specific item and retrying by hand. Now, the moment an item is
+// actually used in an outfit, this fires automatically for anything
+// not already done — so the collage view (which only shows genuinely
+// processed items) fills in on its own the more you actually use your
+// closet, not by remembering to babysit individual items' processing
+// status.
+//
+// Fire-and-forget, same as the original creation-time trigger — never
+// blocks the outfit save itself on how long background removal takes.
+// Skips anything already 'processing' (avoid double-triggering a run
+// already in flight) or already 'done' (nothing to do).
+export async function ensureBackgroundRemovalForItems(userId: string, itemIds: string[]): Promise<void> {
+  if (itemIds.length === 0) return;
+  const items = await getWardrobeItemsByIds(userId, itemIds);
+  for (const item of items) {
+    const status = item.backgroundRemoval?.status;
+    if (status === 'done' || status === 'processing') continue;
+    if (!item.s3Key) continue; // nothing to process without an original photo
+    processBackgroundRemovalInBackground(userId, item.id, item.s3Key);
+  }
+}
+
+export async function processBackgroundRemovalInBackground(userId: string, itemId: string, s3Key: string) {
+  try {
+    await updateWardrobeItem(userId, itemId, { backgroundRemoval: { status: 'processing', error: null } });
+    const { processedKey } = await removeBackground(s3Key, itemId, userId);
+    await updateWardrobeItem(userId, itemId, {
+      s3KeyProcessed: processedKey,
+      imageUrl: getPublicUrl(processedKey),
+      backgroundRemoval: { status: 'done', error: null },
+    });
+  } catch (err: any) {
+    await updateWardrobeItem(userId, itemId, {
+      backgroundRemoval: { status: 'failed', error: err.message ?? 'Unknown error' },
+    });
+  }
 }

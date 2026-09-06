@@ -93,23 +93,51 @@ export default function OutfitDetailScreen() {
     );
   }
 
-  const positions = items.length > 1 ? collageLayout(items, 2) : [];
+  // Previously ALL items went into the overlapping collage regardless
+  // of whether their background had actually finished processing —
+  // an item whose removal failed or hasn't completed yet still shows
+  // its RAW original photo (visible white background, sometimes even
+  // the model still in frame). Stacked opaquely on top of other
+  // pieces, that doesn't just look wrong on its own — it actively
+  // hides whatever's underneath it in the pile, which is exactly what
+  // happened here (a watch's un-removed photo covering the dress).
+  // Only genuinely background-removed items go into the seamless
+  // layered display now; anything still processing/failed shows
+  // separately below instead, so it can't corrupt the collage.
+  const collageReady = items.filter((i) => i.backgroundRemoval?.status === 'done');
+  const notReady = items.filter((i) => i.backgroundRemoval?.status !== 'done');
+  const positions = collageReady.length > 1 ? collageLayout(collageReady, 2) : [];
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScreenHeader title={outfit.name ?? 'Outfit'} />
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }}>
         <View style={styles.displayWrap}>
-          {items.length > 1 ? (
+          {collageReady.length > 1 ? (
             positions.map((pos, idx) => (
-              <View key={items[idx].id ?? idx} style={[styles.collagePiece, { top: pos.top, left: pos.left }]}>
-                <ItemThumb item={items[idx]} size={pos.thumbSize} noBorder />
+              <View key={collageReady[idx].id ?? idx} style={[styles.collagePiece, { top: pos.top, left: pos.left }]}>
+                <ItemThumb item={collageReady[idx]} size={pos.thumbSize} noBorder />
               </View>
             ))
+          ) : collageReady.length === 1 ? (
+            <ItemThumb item={collageReady[0]} size={300} noBorder />
           ) : (
-            <ItemThumb item={items[0] ?? null} size={300} noBorder />
+            <Text style={styles.processingText}>Photos still processing…</Text>
           )}
         </View>
+
+        {notReady.length > 0 && (
+          <View style={styles.notReadySection}>
+            <Text style={styles.notReadyLabel}>
+              {notReady.length} more piece{notReady.length === 1 ? '' : 's'} — photo still processing
+            </Text>
+            <View style={styles.notReadyRow}>
+              {notReady.map((it) => (
+                <View key={it.id} style={styles.notReadyThumb}><ItemThumb item={it} size={56} /></View>
+              ))}
+            </View>
+          </View>
+        )}
 
         <View style={styles.infoSection}>
           {outfit.rating != null && (
@@ -153,6 +181,11 @@ function makeStyles(colors: any, type: any) {
       backgroundColor: colors.cream, borderRadius: radius.lg, overflow: 'hidden', marginTop: spacing.md,
     },
     collagePiece: { position: 'absolute' },
+    processingText: { flex: 1, textAlign: 'center', textAlignVertical: 'center', color: colors.inkMuted, fontSize: 13 },
+    notReadySection: { paddingHorizontal: spacing.lg, marginTop: spacing.md, alignItems: 'center' },
+    notReadyLabel: { fontSize: 11, color: colors.inkMuted, marginBottom: spacing.sm },
+    notReadyRow: { flexDirection: 'row', gap: spacing.sm },
+    notReadyThumb: { borderRadius: radius.sm, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
     infoSection: { paddingHorizontal: spacing.lg, marginTop: spacing.lg, alignItems: 'center' },
     starsRow: { flexDirection: 'row', gap: 2, marginBottom: spacing.sm },
     description: { ...type.body, textAlign: 'center', marginBottom: spacing.sm },

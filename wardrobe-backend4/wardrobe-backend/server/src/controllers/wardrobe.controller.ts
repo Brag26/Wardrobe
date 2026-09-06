@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import {
   getWardrobeUploadUrl, getBulkWardrobeUploadUrls, getPublicUrl, removeBackground, deleteWardrobePhoto, getSignedReadUrl,
+  processBackgroundRemovalInBackground as processBackgroundRemoval,
 } from '../services/s3.service';
 import {
   createWardrobeItem, listWardrobeItems, getWardrobeItem, updateWardrobeItem,
@@ -74,21 +75,13 @@ export async function scanTag(req: Request, res: Response) {
 // In production, replace this direct call with an S3 event -> SQS ->
 // Lambda pipeline (see s3.service.ts's comment) so it's not tied to this
 // request's lifetime — fine for now / for demo purposes.
-async function processBackgroundRemoval(userId: string, itemId: string, s3Key: string) {
-  try {
-    await updateWardrobeItem(userId, itemId, { backgroundRemoval: { status: 'processing', error: null } });
-    const { processedKey } = await removeBackground(s3Key, itemId, userId);
-    await updateWardrobeItem(userId, itemId, {
-      s3KeyProcessed: processedKey,
-      imageUrl: getPublicUrl(processedKey),
-      backgroundRemoval: { status: 'done', error: null },
-    });
-  } catch (err: any) {
-    await updateWardrobeItem(userId, itemId, {
-      backgroundRemoval: { status: 'failed', error: err.message ?? 'Unknown error' },
-    });
-  }
-}
+//
+// This function used to be defined locally right here — moved to
+// s3.service.ts as processBackgroundRemovalInBackground so it can be
+// shared with ensureBackgroundRemovalForItems (triggers the same retry
+// automatically whenever an item gets pulled into an outfit, not just
+// at initial item creation). Import below, same call sites, no
+// behavior change here — just no longer a second copy of identical logic.
 
 // ---------- Create ----------
 

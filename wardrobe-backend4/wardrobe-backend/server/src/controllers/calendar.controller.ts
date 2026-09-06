@@ -10,6 +10,7 @@ import {
   listWardrobeItems, createOutfit, getOutfit, getOutfitsByIds, getWardrobeItemsByIds,
 } from '../services/mongodb.service';
 import { pickOutfitItems } from '../services/aiStylist.service';
+import { ensureBackgroundRemovalForItems } from '../services/s3.service';
 import { Outfit } from '../types/domain';
 
 function requireUser(req: Request, res: Response): string | null {
@@ -130,6 +131,7 @@ export async function getOrGenerateTodayOutfit(req: Request, res: Response) {
     createdAt: now, updatedAt: now,
   };
   await createOutfit(outfit);
+  ensureBackgroundRemovalForItems(userId, outfit.itemIds);
   await setCalendarEntry(userId, date, outfit.id);
 
   res.json({ outfit, items: pickedItems, isNew: true });
