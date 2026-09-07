@@ -271,9 +271,25 @@ export async function removeBackground(originalKey: string, itemId: string, user
 export async function ensureBackgroundRemovalForItems(userId: string, itemIds: string[]): Promise<void> {
   if (itemIds.length === 0) return;
   const items = await getWardrobeItemsByIds(userId, itemIds);
+  const STALE_PROCESSING_MS = 5 * 60 * 1000; // 5 minutes
   for (const item of items) {
     const status = item.backgroundRemoval?.status;
-    if (status === 'done' || status === 'processing') continue;
+    if (status === 'done') continue;
+    // Previously ANY 'processing' status was assumed to mean "actively
+    // being handled right now, leave it alone" — but a real background
+    // task only ever reaches 'done' or 'failed' if it runs to
+    // completion. If the SERVER PROCESS ITSELF restarted mid-run (a
+    // Render redeploy killing an in-flight request — genuinely common
+    // given how many deploys happened during this build), the item is
+    // left saying 'processing' forever with nothing actually
+    // processing it — a permanently stuck, false-positive "already
+    // handled" state that this function would otherwise skip retrying
+    // indefinitely. Treats 'processing' as stale (and worth retrying)
+    // once it's been sitting that way for more than 5 minutes — long
+    // enough that a genuinely in-flight run would have finished either
+    // way by then.
+    const isStaleProcessing = status === 'processing' && (Date.now() - (item.updatedAt ?? 0)) > STALE_PROCESSING_MS;
+    if (status === 'processing' && !isStaleProcessing) continue;
     if (!item.s3Key) continue; // nothing to process without an original photo
     processBackgroundRemovalInBackground(userId, item.id, item.s3Key);
   }
