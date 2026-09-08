@@ -82,12 +82,14 @@ export default function SmartMirrorScreen() {
 
 function makeStyles(colors: any, type: any) {
   return StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.black },
+  // Fixed dark, not colors.black — a camera viewfinder needs to stay
+  // dark regardless of app theme, same fix as elsewhere in this pass.
+  container: { flex: 1, backgroundColor: '#1A1712' },
   overlay: { flex: 1, justifyContent: 'space-between' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
-  permText: { color: colors.white, textAlign: 'center', marginBottom: spacing.md },
-  permButton: { backgroundColor: colors.white, borderRadius: 20, paddingVertical: 10, paddingHorizontal: spacing.lg },
-  permButtonText: { color: colors.black, fontWeight: '700' },
+  permText: { color: '#FFFFFF', textAlign: 'center', marginBottom: spacing.md },
+  permButton: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingVertical: 10, paddingHorizontal: spacing.lg },
+  permButtonText: { color: '#1A1712', fontWeight: '700' },
   draggableItem: { position: 'absolute', top: '35%', alignSelf: 'center' },
   itemPicker: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, paddingBottom: spacing.sm },
   hint: { color: '#eee', textAlign: 'center', fontSize: 11, paddingBottom: spacing.md },

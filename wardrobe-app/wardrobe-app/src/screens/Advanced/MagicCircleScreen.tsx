@@ -77,9 +77,12 @@ export default function MagicCircleScreen() {
 
 function makeStyles(colors: any, type: any) {
   return StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.black },
+  // Fixed dark, not colors.black — this is a themed full-screen
+  // circular animation experience, meant to stay dramatic/dark
+  // regardless of app theme (same fix as OOTD banner/chat bubbles).
+  container: { flex: 1, backgroundColor: '#1A1712' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  hint: { color: colors.white, fontSize: 16, fontWeight: '600', marginBottom: spacing.xl },
+  hint: { color: '#FFFFFF', fontSize: 16, fontWeight: '600', marginBottom: spacing.xl },
   orbitWrap: { position: 'absolute', width: 1, height: 1, alignItems: 'center', justifyContent: 'center' },
   orbitItem: { position: 'absolute' },
   centerCircle: {

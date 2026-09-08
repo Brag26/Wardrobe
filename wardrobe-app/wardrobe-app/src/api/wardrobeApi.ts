@@ -160,8 +160,13 @@ export function requestOtp(phone: string) {
   return fetchWithTimeout(`${API_BASE_URL}/auth/request-otp`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone }),
   }).then(async (r) => {
-    const body = await r.json();
-    if (!r.ok) throw new Error(body.error ?? 'Failed to send OTP');
+    // Previously called r.json() directly with no protection — unlike
+    // authedFetch (which already safely falls back if the response
+    // isn't valid JSON), a genuinely non-JSON response here (a crash
+    // page, a proxy error, anything not real JSON) would throw a raw,
+    // unhandled "JSON Parse error" instead of a real message.
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.error ?? `Failed to send OTP (${r.status})`);
     return body;
   });
 }
@@ -170,8 +175,8 @@ export async function verifyOtp(phone: string, code: string) {
   const res = await fetchWithTimeout(`${API_BASE_URL}/auth/verify-otp`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone, code }),
   });
-  const body = await res.json();
-  if (!res.ok) throw new Error(body.error ?? 'Invalid code');
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? `Invalid code (${res.status})`);
   await storeToken(body.token);
   return body as { token: string; user: { id: string; phone: string } };
 }
@@ -182,8 +187,8 @@ export async function devLogin(phone: string) {
   const res = await fetchWithTimeout(`${API_BASE_URL}/auth/dev-login`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone }),
   });
-  const body = await res.json();
-  if (!res.ok) throw new Error(body.error ?? 'Dev login not available — is DEV_LOGIN_ENABLED=true on the backend?');
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? `Dev login not available (${res.status}) — is DEV_LOGIN_ENABLED=true on the backend?`);
   await storeToken(body.token);
   return body as { token: string; user: { id: string; phone: string } };
 }
@@ -400,7 +405,7 @@ export async function submitColorAnalysis(localImageUri: string) {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ s3Key: key }),
   }, 25_000);
-  const body = await res.json();
-  if (!res.ok) throw new Error(body.error ?? 'Color analysis failed');
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? `Color analysis failed (${res.status})`);
   return body;
 }

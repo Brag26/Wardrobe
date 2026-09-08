@@ -146,10 +146,17 @@ function makeStyles(colors: any) {
     assignedWrap: { flex: 1, alignItems: 'center', padding: spacing.lg, paddingTop: spacing.xxl },
     outfitCard: { flex: 1, backgroundColor: colors.bgSoft, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.sm, alignItems: 'center' },
     outfitName: { fontSize: 12, fontWeight: '600', color: colors.ink, marginTop: spacing.xs },
-    wrapContainer: { flex: 1, backgroundColor: colors.black },
+    // Fixed dark surface on purpose, not colors.black/white — this is
+    // a dramatic full-screen celebration state, meant to always look
+    // this way regardless of the app's light/dark mode toggle. Using
+    // the theme-inverting tokens here would flip this to a WHITE
+    // screen with black text in dark mode, breaking the intended look
+    // entirely (same root mistake found and fixed in the OOTD banner
+    // and chat bubbles).
+    wrapContainer: { flex: 1, backgroundColor: '#1A1712' },
     wrapCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
     wrapCheck: { fontSize: 56, marginBottom: spacing.md },
-    wrapTitle: { color: colors.white, fontSize: 22, fontWeight: '700', marginBottom: spacing.sm },
+    wrapTitle: { color: '#FFFFFF', fontSize: 22, fontWeight: '700', marginBottom: spacing.sm },
     wrapSubtitle: { color: 'rgba(255,255,255,0.7)', fontSize: 13, textAlign: 'center', lineHeight: 19 },
   });
 }

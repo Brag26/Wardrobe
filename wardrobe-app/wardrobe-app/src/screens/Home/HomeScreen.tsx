@@ -320,7 +320,7 @@ export default function HomeScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity style={styles.outfitCard} onPress={() => navigation.navigate('OutfitsTab')}>
               <View style={styles.outfitThumbRow}>
-                <ItemThumb item={item.itemIds?.[0] ? outfitPreviews[item.itemIds[0]] ?? null : null} size={80} />
+                <ItemThumb item={item.itemIds?.[0] ? outfitPreviews[item.itemIds[0]] ?? null : null} size={80} noBorder />
               </View>
               <Text style={styles.outfitName} numberOfLines={1}>{item.name ?? 'Outfit'}</Text>
               <View style={styles.outfitMetaRow}>
@@ -498,7 +498,17 @@ function makeStyles(colors: any, type: any) {
     araBannerPreview: { borderRadius: radius.md, overflow: 'hidden' },
     ootdBanner: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      backgroundColor: colors.black, borderRadius: radius.lg, padding: spacing.md,
+      // Deliberately a fixed dark value, NOT colors.black — colors.black
+      // is intentionally INVERTED in dark mode (near-white, for button
+      // styling: "light pill on dark background"). Reusing it here for
+      // this banner's own background caused the exact opposite of what
+      // was intended: in dark mode the banner flipped to near-white
+      // while its white label text stayed white, making it nearly
+      // invisible. This banner is always meant to be a dark surface
+      // with light text (whether this default state, or once a real
+      // outfit's dominant color loads) — fixed value keeps that
+      // correct in both themes.
+      backgroundColor: '#1A1712', borderRadius: radius.lg, padding: spacing.md,
       marginHorizontal: spacing.lg, marginBottom: spacing.lg, minHeight: 76,
     },
     ootdLabel: { color: 'rgba(255,255,255,0.75)', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },

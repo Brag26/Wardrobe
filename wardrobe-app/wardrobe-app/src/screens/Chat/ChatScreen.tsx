@@ -286,7 +286,7 @@ function makeStyles(colors: any, type: any) {
   bubble: { padding: 14, borderRadius: radius.md, marginBottom: spacing.sm, maxWidth: '80%' },
   referencedItemsRow: { marginTop: -4, marginBottom: spacing.sm },
   referencedItemCard: { marginRight: spacing.xs, borderRadius: radius.sm, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
-  userBubble: { backgroundColor: colors.black, alignSelf: 'flex-end' },
+  userBubble: { backgroundColor: '#1A1712', alignSelf: 'flex-end' },
   assistantBubble: { backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, alignSelf: 'flex-start' },
   // type.body has no explicit lineHeight — fine for short labels
   // elsewhere in the app, but a real problem for multi-sentence chat
@@ -295,7 +295,7 @@ function makeStyles(colors: any, type: any) {
   // cramped block of text. 1.5x the font size is a standard readable
   // ratio for actual prose, not just short UI text.
   bubbleText: { ...type.body, lineHeight: 21, letterSpacing: 0.1 },
-  userText: { color: colors.white },
+  userText: { color: '#FFFFFF' },
   typingBubble: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   typingText: { ...type.muted },
   typingDots: { flexDirection: 'row', gap: 3 },
