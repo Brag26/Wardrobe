@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator } from 'react-native';
 import { useFonts } from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
+import { DMSans_400Regular, DMSans_600SemiBold, DMSans_700Bold } from '@expo-google-fonts/dm-sans';
 
 import AuthNavigator from './src/navigation/AuthNavigator';
 import MainStackNavigator from './src/navigation/MainStackNavigator';
@@ -53,7 +54,17 @@ export default function App() {
   // safe, JS-only way to get the same practical fix (no blank icons)
   // without that risk — worth revisiting later once there's a reliable
   // way to confirm the exact right splash-screen version.
-  const [fontsLoaded] = useFonts({ ...Ionicons.font });
+  // Same font-loading gate as Ionicons below, now also loading DM
+  // Sans (the spec'd typeface — see theme.ts's buildType, which
+  // references these exact font family names). Same reasoning as the
+  // Ionicons comment: block on load rather than let text render in
+  // the system font default and flash to DM Sans a moment later.
+  const [fontsLoaded] = useFonts({
+    ...Ionicons.font,
+    DMSans_400Regular,
+    DMSans_600SemiBold,
+    DMSans_700Bold,
+  });
 
   if (!fontsLoaded) {
     return (

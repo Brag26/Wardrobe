@@ -63,7 +63,21 @@ export default function RootTabNavigator() {
         tabBarIcon: ({ focused }) => <TabIcon routeName={route.name} focused={focused} />,
       })}
     >
-      <Tab.Screen name="HomeTab" component={HomeScreen} options={{ tabBarLabel: 'Home' }} />
+      <Tab.Screen
+        name="HomeTab"
+        component={HomeScreen}
+        options={{
+          tabBarLabel: 'Home',
+          // Per the client spec: Home is the one screen that should
+          // render with NO bottom tab bar at all (matches the
+          // reference mockup, which shows Home's content running all
+          // the way to the bottom edge with just the floating + button,
+          // no persistent nav chrome). display:'none' on just this
+          // screen's own options overrides the shared tabBarStyle
+          // above without touching every other tab's bar.
+          tabBarStyle: { display: 'none' },
+        }}
+      />
       <Tab.Screen name="AraTab" component={AraNavigator} options={{ tabBarLabel: 'Ara' }} />
       <Tab.Screen name="ClosetTab" component={ClosetNavigator} options={{ tabBarLabel: 'Closet' }} />
       <Tab.Screen name="OutfitsTab" component={OutfitsNavigator} options={{ tabBarLabel: 'Outfits' }} />

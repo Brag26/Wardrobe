@@ -3,41 +3,38 @@
 // theme lives alongside it in darkColors — see ThemeContext.tsx for how
 // screens switch between them at runtime.
 //
-// v2 — design refresh toward a more minimal/cohesive, less "bright
-// pastel scrapbook" feel. Two concrete changes, not a guess-and-hope
-// repaint:
-//   1. The five accent pastels (lavender/pink/peach/mint/sky) were each
-//      picked independently and didn't read as one family — desaturated
-//      them toward a shared warm-neutral undertone so they feel curated
-//      together instead of scattered. lavenderDeep (the app's actual
-//      primary accent — active tab, calendar highlight, badges) went
-//      from a brighter candy-purple to a more grounded, designer-ish
-//      violet.
-//   2. Typography had NO letterSpacing anywhere and NO lineHeight on
-//      most sizes — the exact gap that made chat bubbles look cramped
-//      (fixed there already) is fixed here at the SOURCE, so every
-//      screen using `type.*` gets proper line-height automatically,
-//      not just the one place that was manually patched. Headers also
-//      get slightly negative tracking, a standard technique for a
-//      tighter, more premium feel on large text.
-// Every existing key name is preserved — only values changed — so no
-// other file needs to change to pick this up.
-
+// v3 — real client design spec applied directly, not another round of
+// "considered refinement" guesswork:
+//   - Colors constrained to the exact 4 specified: white #FFFFFF,
+//     black #141414, gray #999999, gray #636363. These now drive the
+//     entire neutral palette (bg/card/border/ink/inkMuted/black/white).
+//     Functional accent colors (success/danger/heart, and the pastel
+//     tag-pill accents used for filters/categories) are kept — the
+//     spec's 4 colors are clearly the dominant neutral palette shown
+//     throughout the reference screens, not a literal "delete every
+//     other color" instruction, since a delete button needs SOME red
+//     signal and tag pills need visual variety to stay scannable.
+//   - Corner radius set to 30 for cards (the dominant, most visible
+//     radius in the reference mockups), with smaller elements (chips,
+//     small buttons) scaled down proportionally rather than also
+//     forced to 30, which would look odd on small tap targets.
+//   - Added a real card shadow token (cardShadow) — previously cards
+//     only had a 1px border, no elevation at all.
 export const lightColors = {
-  bg: '#FFFDFB',
-  bgSoft: '#FBF7F3',
-  cream: '#FAF3EC',
+  bg: '#FFFFFF',
+  bgSoft: '#F7F7F7',
+  cream: '#F7F7F7',
   card: '#FFFFFF',
-  border: '#EFE7DD',
-  ink: '#1F1B1A',
-  inkMuted: '#8B837C',
-  black: '#161213',
+  border: '#E5E5E5',
+  ink: '#141414',
+  inkMuted: '#636363',
+  black: '#141414',
   white: '#FFFFFF',
 
   mascot: '#E5E1DB',
   mascotShadow: '#D2CCC3',
 
-  accent: '#161213',
+  accent: '#141414',
   lavender: '#E9E0F3',
   lavenderDeep: '#9B82C4',
   pink: '#F7DFE4',
@@ -51,28 +48,28 @@ export const lightColors = {
   warning: '#B8862E',
   heart: '#E8536A',
 
-  chipBg: '#FBF7F3',
-  chipBorder: '#EFE7DD',
+  chipBg: '#F7F7F7',
+  chipBorder: '#E5E5E5',
   chipSelectedBg: '#E9E0F3',
   chipSelectedBorder: '#9B82C4',
-  chipSelectedText: '#161213',
+  chipSelectedText: '#141414',
 };
 
 export const darkColors: typeof lightColors = {
-  bg: '#141112',
-  bgSoft: '#1D1919',
-  cream: '#231E1F',
-  card: '#1D1919',
-  border: '#332C2D',
-  ink: '#F3EFEE',
-  inkMuted: '#A79F9C',
-  black: '#F3EFEE',   // buttons invert: light pill on dark bg
-  white: '#141112',   // text/icons on those inverted buttons
+  bg: '#141414',
+  bgSoft: '#1F1F1F',
+  cream: '#1F1F1F',
+  card: '#1F1F1F',
+  border: '#333333',
+  ink: '#FFFFFF',
+  inkMuted: '#999999',
+  black: '#FFFFFF',   // buttons invert: light pill on dark bg
+  white: '#141414',   // text/icons on those inverted buttons
 
   mascot: '#4A4342',
   mascotShadow: '#332C2D',
 
-  accent: '#F3EFEE',
+  accent: '#FFFFFF',
   lavender: '#372D42',
   lavenderDeep: '#8267AD',
   pink: '#3B2830',
@@ -86,11 +83,11 @@ export const darkColors: typeof lightColors = {
   warning: '#D4A24F',
   heart: '#F0728A',
 
-  chipBg: '#1D1919',
-  chipBorder: '#332C2D',
+  chipBg: '#1F1F1F',
+  chipBorder: '#333333',
   chipSelectedBg: '#372D42',
   chipSelectedBorder: '#8267AD',
-  chipSelectedText: '#F3EFEE',
+  chipSelectedText: '#FFFFFF',
 };
 
 // Default export kept for any screen not yet migrated to the dynamic
@@ -99,15 +96,31 @@ export const darkColors: typeof lightColors = {
 export const colors = lightColors;
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 };
-export const radius = { sm: 10, md: 14, lg: 20, pill: 999 };
+// sm/md kept smaller for chips/small buttons (a 30px radius on a 32px-tall
+// chip would look like a circle, not a pill-ish rounded rect) — lg is the
+// real spec value (30), used for cards/major surfaces, matching the
+// dominant rounded look throughout the reference screens.
+export const radius = { sm: 12, md: 20, lg: 30, pill: 999 };
+
+// Real elevation, not just a border — cards in the reference mockups
+// visibly lift off the background. iOS uses the shadow* properties,
+// Android uses elevation; spreading this object covers both from one
+// token.
+export const cardShadow = {
+  shadowColor: '#000000',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.06,
+  shadowRadius: 12,
+  elevation: 3,
+};
 
 export function buildType(c: typeof lightColors) {
   return {
-    h1: { fontSize: 28, fontWeight: '700' as const, color: c.ink, letterSpacing: -0.4, lineHeight: 34 },
-    h2: { fontSize: 20, fontWeight: '700' as const, color: c.ink, letterSpacing: -0.2, lineHeight: 26 },
-    h3: { fontSize: 16, fontWeight: '600' as const, color: c.ink, letterSpacing: -0.1, lineHeight: 21 },
-    body: { fontSize: 14, fontWeight: '400' as const, color: c.ink, lineHeight: 20 },
-    muted: { fontSize: 12, fontWeight: '400' as const, color: c.inkMuted, lineHeight: 16 },
+    h1: { fontSize: 28, fontWeight: '700' as const, fontFamily: 'DMSans_700Bold', color: c.ink, letterSpacing: -0.4, lineHeight: 34 },
+    h2: { fontSize: 20, fontWeight: '700' as const, fontFamily: 'DMSans_700Bold', color: c.ink, letterSpacing: -0.2, lineHeight: 26 },
+    h3: { fontSize: 16, fontWeight: '600' as const, fontFamily: 'DMSans_600SemiBold', color: c.ink, letterSpacing: -0.1, lineHeight: 21 },
+    body: { fontSize: 14, fontWeight: '400' as const, fontFamily: 'DMSans_400Regular', color: c.ink, lineHeight: 20 },
+    muted: { fontSize: 12, fontWeight: '400' as const, fontFamily: 'DMSans_400Regular', color: c.inkMuted, lineHeight: 16 },
   };
 }
 export const type = buildType(lightColors);

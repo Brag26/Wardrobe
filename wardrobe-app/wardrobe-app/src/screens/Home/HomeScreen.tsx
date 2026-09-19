@@ -9,7 +9,7 @@ import { getClosetOverview, getWardrobeItems, listOutfits, setItemFavorite, getI
 import { useAuthStore } from '../../store/authStore';
 import { ItemThumb } from '../../components/ItemThumb';
 import { AraMascot } from '../../components/AraMascot';
-import { spacing, radius, COLOR_SWATCHES } from '../../theme/theme';
+import { spacing, radius, cardShadow, COLOR_SWATCHES } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
 
 const OUTFIT_TABS = ['All', 'Casual', 'Formal', 'Business', 'Evening Wear'];
@@ -310,26 +310,39 @@ export default function HomeScreen() {
             </TouchableOpacity>
           )}
         />
-        <FlatList
-          horizontal
-          data={outfits}
-          keyExtractor={(o) => o.id}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}
-          ListEmptyComponent={<Text style={styles.empty}>No outfits yet</Text>}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={styles.outfitCard} onPress={() => navigation.navigate('OutfitsTab')}>
-              <View style={styles.outfitThumbRow}>
-                <ItemThumb item={item.itemIds?.[0] ? outfitPreviews[item.itemIds[0]] ?? null : null} size={80} noBorder />
-              </View>
-              <Text style={styles.outfitName} numberOfLines={1}>{item.name ?? 'Outfit'}</Text>
-              <View style={styles.outfitMetaRow}>
-                <Text style={styles.outfitMeta}>{item.brand ?? `${item.itemIds?.length ?? 0} pieces`}</Text>
-                {item.rating != null && <Text style={styles.outfitRating}>★ {item.rating}</Text>}
-              </View>
+        {outfits.length === 0 ? (
+          // Real illustrated empty state (client-provided asset), not
+          // just a plain "No outfits yet" line — previously this
+          // section gave a first-time user almost nothing to look at.
+          <View style={styles.emptyStateCard}>
+            <Image source={require('../../../assets/illustrations/create-outfit.jpg')} style={styles.emptyStateImage} resizeMode="contain" />
+            <Text style={styles.emptyStateTitle}>Create your first look</Text>
+            <Text style={styles.emptyStateBody}>Put together outfits you love and save them for whenever you need a little style inspiration.</Text>
+            <TouchableOpacity style={styles.emptyStateButton} onPress={() => navigation.navigate('OutfitsTab', { screen: 'CreateOutfit' })}>
+              <Text style={styles.emptyStateButtonText}>Create outfit</Text>
             </TouchableOpacity>
-          )}
-        />
+          </View>
+        ) : (
+          <FlatList
+            horizontal
+            data={outfits}
+            keyExtractor={(o) => o.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}
+            renderItem={({ item }) => (
+              <TouchableOpacity style={styles.outfitCard} onPress={() => navigation.navigate('OutfitsTab')}>
+                <View style={styles.outfitThumbRow}>
+                  <ItemThumb item={item.itemIds?.[0] ? outfitPreviews[item.itemIds[0]] ?? null : null} size={80} noBorder />
+                </View>
+                <Text style={styles.outfitName} numberOfLines={1}>{item.name ?? 'Outfit'}</Text>
+                <View style={styles.outfitMetaRow}>
+                  <Text style={styles.outfitMeta}>{item.brand ?? `${item.itemIds?.length ?? 0} pieces`}</Text>
+                  {item.rating != null && <Text style={styles.outfitRating}>★ {item.rating}</Text>}
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        )}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>My Items</Text>
@@ -350,19 +363,28 @@ export default function HomeScreen() {
             </TouchableOpacity>
           )}
         />
-        <FlatList
-          horizontal
-          data={items}
-          keyExtractor={(i) => i.id}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.lg }}
-          ListEmptyComponent={<Text style={styles.empty}>No items yet</Text>}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.itemCard}
-              onPress={() => navigation.navigate('ClosetTab', { screen: 'ItemDetails', params: { itemId: item.id } })}
-            >
-              <ItemThumb item={item} size={80} />
+        {items.length === 0 ? (
+          <View style={[styles.emptyStateCard, { marginBottom: spacing.lg }]}>
+            <Image source={require('../../../assets/illustrations/build-wardrobe.jpg')} style={styles.emptyStateImage} resizeMode="contain" />
+            <Text style={styles.emptyStateTitle}>Build Your Wardrobe</Text>
+            <Text style={styles.emptyStateBody}>Add your clothes, shoes, bags, and accessories so everything you own is easy to find and style.</Text>
+            <TouchableOpacity style={styles.emptyStateButton} onPress={() => navigation.navigate('ClosetTab', { screen: 'AddItem' })}>
+              <Text style={styles.emptyStateButtonText}>Add Item</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            horizontal
+            data={items}
+            keyExtractor={(i) => i.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.lg }}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.itemCard}
+                onPress={() => navigation.navigate('ClosetTab', { screen: 'ItemDetails', params: { itemId: item.id } })}
+              >
+                <ItemThumb item={item} size={80} />
               <TouchableOpacity
                 style={styles.itemHeart}
                 onPress={() => { setItemFavorite(item.id, !item.isFavorite); load(); }}
@@ -372,7 +394,8 @@ export default function HomeScreen() {
               <Text style={styles.itemLabel} numberOfLines={1}>{item.color} {item.category}</Text>
             </TouchableOpacity>
           )}
-        />
+          />
+        )}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Browse by category</Text>
@@ -518,6 +541,22 @@ function makeStyles(colors: any, type: any) {
     ootdPreviewRow: { flexDirection: 'row' },
     ootdPreviewThumb: { marginLeft: -10, borderRadius: radius.sm, overflow: 'hidden', borderWidth: 2, borderColor: colors.white },
     sectionTitle: { ...type.h2, paddingHorizontal: spacing.lg },
+    // Illustrated empty states — matches the client reference exactly:
+    // white card, illustration, bold title, muted description, full-
+    // width black pill button. cardShadow gives it real elevation
+    // instead of just a flat border.
+    emptyStateCard: {
+      backgroundColor: colors.card, borderRadius: radius.lg, marginHorizontal: spacing.lg,
+      padding: spacing.xl, alignItems: 'center', ...cardShadow,
+    },
+    emptyStateImage: { width: 140, height: 140, marginBottom: spacing.md },
+    emptyStateTitle: { ...type.h2, marginBottom: spacing.xs, textAlign: 'center' },
+    emptyStateBody: { ...type.muted, textAlign: 'center', marginBottom: spacing.lg, paddingHorizontal: spacing.sm },
+    emptyStateButton: {
+      backgroundColor: colors.black, borderRadius: radius.pill, paddingVertical: spacing.sm + 4,
+      paddingHorizontal: spacing.xl, width: '100%', alignItems: 'center',
+    },
+    emptyStateButtonText: { color: colors.white, fontWeight: '700', fontSize: 14 },
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: spacing.lg, marginTop: spacing.lg },
     viewAll: { fontSize: 11, color: colors.inkMuted, fontWeight: '600' },
     statRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.sm },
