@@ -7,7 +7,7 @@ import { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import {
   getWardrobeUploadUrl, getBulkWardrobeUploadUrls, getPublicUrl, removeBackground, deleteWardrobePhoto, getSignedReadUrl,
-  processBackgroundRemovalInBackground as processBackgroundRemoval,
+  processBackgroundRemovalInBackground as processBackgroundRemoval, verifyUploadedPhotoSize,
 } from '../services/s3.service';
 import {
   createWardrobeItem, listWardrobeItems, getWardrobeItem, updateWardrobeItem,
@@ -97,6 +97,12 @@ export async function saveWardrobeItem(req: Request, res: Response) {
     return res.status(400).json({ error: 'itemId, s3Key, category, and color are required' });
   }
 
+  try {
+    await verifyUploadedPhotoSize(s3Key);
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message });
+  }
+
   const now = Date.now();
   const item: WardrobeItem = {
     id: itemId,
@@ -142,6 +148,14 @@ export async function saveBulkWardrobeItems(req: Request, res: Response) {
   const saved: WardrobeItem[] = [];
   for (const raw of items) {
     if (!raw.itemId || !raw.s3Key || !raw.category || !raw.color) continue;
+    // Bulk mode: skip just the oversized one rather than failing the
+    // whole batch — one bad photo shouldn't block the other N-1 valid
+    // items in the same upload.
+    try {
+      await verifyUploadedPhotoSize(raw.s3Key);
+    } catch {
+      continue;
+    }
     const item: WardrobeItem = {
       id: raw.itemId, userId, s3Key: raw.s3Key, s3KeyProcessed: null,
       imageUrl: getPublicUrl(raw.s3Key),
@@ -263,6 +277,12 @@ export async function replaceItemPhoto(req: Request, res: Response) {
   const itemId = req.params.id;
   const item = await getWardrobeItem(userId, itemId);
   if (!item) return res.status(404).json({ error: 'Item not found' });
+
+  try {
+    await verifyUploadedPhotoSize(s3Key);
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message });
+  }
 
   // Update the raw (pre-removal) image immediately so the UI has
   // SOMETHING to show right away, then kick off background removal

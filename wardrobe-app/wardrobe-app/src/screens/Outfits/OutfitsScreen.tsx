@@ -158,7 +158,7 @@ export default function OutfitsScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <Text style={styles.title}>My Outfits</Text>
-        <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: spacing.xs, flexShrink: 1 }}>
           <TouchableOpacity style={styles.filterButton} onPress={() => setFilterPanelOpen(true)}>
             <FigmaIcon name="filter" size={13} color={colors.ink} />
             {activeFilterCount > 0 && <Text style={styles.filterButtonText}> {activeFilterCount}</Text>}
@@ -357,7 +357,10 @@ export default function OutfitsScreen() {
 function makeStyles(colors: any, type: any) {
   return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  header: {
+    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: spacing.lg, paddingTop: spacing.sm, rowGap: spacing.sm,
+  },
   title: { ...type.h1 },
   filterButton: { backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, width: 34, height: 34, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
   filterButtonText: { fontSize: 12, color: colors.ink },

@@ -9,7 +9,7 @@ import { FigmaIcon } from '../../components/icons/FigmaIcon';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { Button } from '../../components/Button';
 import { ItemDetailsForm, EMPTY_ITEM_FORM, ItemFormValues } from '../../components/ItemDetailsForm';
-import { uploadWardrobeItem, getAttributeSuggestions, scanItemTag } from '../../api/wardrobeApi';
+import { uploadWardrobeItem, getAttributeSuggestions, scanItemTag, checkPhotoSize, MAX_PHOTO_BYTES } from '../../api/wardrobeApi';
 import { checkPhotoBlur } from '../../utils/blurCheck';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
@@ -92,6 +92,8 @@ export default function AddItemScreen() {
     if (!perm.granted) return Alert.alert('Permission needed', 'Allow camera access to scan a tag.');
     const result = await ImagePicker.launchCameraAsync({ quality: 0.8, allowsEditing: true });
     if (result.canceled) return;
+    const sizeCheck = checkPhotoSize(result.assets[0].fileSize);
+    if (!sizeCheck.ok) return Alert.alert('Photo too large', sizeCheck.message);
 
     setScanning(true);
     setScanNote(null);
@@ -129,6 +131,8 @@ export default function AddItemScreen() {
     const result = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true, aspect: [3, 4] });
     if (!result.canceled) {
       const a = result.assets[0];
+      const sizeCheck = checkPhotoSize(a.fileSize);
+      if (!sizeCheck.ok) return Alert.alert('Photo too large', sizeCheck.message);
       setImageUri(a.uri);
       const blur = await checkPhotoBlur(a.uri, a.width, a.height);
       setBlurWarning(blur.looksBlurry ? blur.reason : null);
@@ -145,6 +149,14 @@ export default function AddItemScreen() {
     if (!perm.granted) return Alert.alert('Permission needed', 'Allow photo access to add an item.');
     const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.7, allowsMultipleSelection: true, selectionLimit: 20 });
     if (result.canceled || result.assets.length === 0) return;
+
+    const oversized = result.assets.filter((a) => !checkPhotoSize(a.fileSize).ok);
+    if (oversized.length > 0) {
+      return Alert.alert(
+        'Photo too large',
+        `${oversized.length} of the selected photo${oversized.length === 1 ? ' is' : 's are'} over ${MAX_PHOTO_BYTES / (1024 * 1024)}MB — please deselect and try smaller photos.`
+      );
+    }
 
     if (result.assets.length > 1) {
       const initialPhotos = await Promise.all(result.assets.map(async (a) => {
@@ -167,6 +179,13 @@ export default function AddItemScreen() {
     if (!hasImage) return Alert.alert('Nothing to paste', "There's no image on your clipboard right now.");
     const image = await Clipboard.getImageAsync({ format: 'jpeg' });
     if (!image?.data) return Alert.alert("Couldn't paste", 'That clipboard image could not be read.');
+    // Clipboard images come back as base64 data, not a file with its
+    // own fileSize field like ImagePicker gives — base64 inflates the
+    // real byte count by ~33%, so approximate actual size from the
+    // string length to apply the same limit consistently here too.
+    const approxBytes = (image.data.length - (image.data.indexOf(',') + 1)) * 0.75;
+    const sizeCheck = checkPhotoSize(approxBytes);
+    if (!sizeCheck.ok) return Alert.alert('Photo too large', sizeCheck.message);
     setImageUri(image.data);
     setBlurWarning(null); // clipboard images don't carry reliable width/height for the heuristic
     autoIdentifyItem(image.data, form);

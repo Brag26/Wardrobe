@@ -19,7 +19,7 @@ import { FigmaIcon } from '../../components/icons/FigmaIcon';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { Button } from '../../components/Button';
 import { ItemDetailsForm, EMPTY_ITEM_FORM, ItemFormValues } from '../../components/ItemDetailsForm';
-import { uploadWardrobeItemsBulk, getAttributeSuggestions } from '../../api/wardrobeApi';
+import { uploadWardrobeItemsBulk, getAttributeSuggestions, checkPhotoSize } from '../../api/wardrobeApi';
 import { checkPhotoBlur } from '../../utils/blurCheck';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
@@ -57,7 +57,12 @@ export default function BulkUploadScreen() {
 
   const updateForm = (patch: Partial<ItemFormValues>) => setForm((prev) => ({ ...prev, ...patch }));
 
-  const addPhoto = async (uri: string, width?: number, height?: number) => {
+  const addPhoto = async (uri: string, width?: number, height?: number, fileSize?: number) => {
+    const sizeCheck = checkPhotoSize(fileSize);
+    if (!sizeCheck.ok) {
+      Alert.alert('Photo skipped', sizeCheck.message);
+      return;
+    }
     const blur = await checkPhotoBlur(uri, width, height);
     setPhotos((prev) => [...prev, { uri, width, height, blurWarning: blur.looksBlurry ? blur.reason : null }]);
   };
@@ -68,7 +73,7 @@ export default function BulkUploadScreen() {
     const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
     if (!result.canceled) {
       const a = result.assets[0];
-      await addPhoto(a.uri, a.width, a.height);
+      await addPhoto(a.uri, a.width, a.height, a.fileSize);
     }
   };
 
@@ -77,7 +82,7 @@ export default function BulkUploadScreen() {
     if (!perm.granted) return Alert.alert('Permission needed', 'Allow photo access to add items.');
     const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.7, allowsMultipleSelection: true, selectionLimit: 20 });
     if (!result.canceled) {
-      for (const a of result.assets) await addPhoto(a.uri, a.width, a.height);
+      for (const a of result.assets) await addPhoto(a.uri, a.width, a.height, a.fileSize);
     }
   };
 

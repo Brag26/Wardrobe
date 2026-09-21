@@ -23,6 +23,28 @@ async function resizeForUpload(localImageUri: string, maxDimension = 1200): Prom
   return localImageUri;
 }
 
+// Previously there was genuinely no size limit anywhere — not on the
+// picker, not on the upload, not on the server. Someone could pick an
+// enormous photo and it would silently upload (slowly) and get
+// processed as-is. This is the client-side layer: fast feedback,
+// before wasting time on a slow upload of something that's going to
+// get rejected anyway. MAX_PHOTO_BYTES matches the server-side check
+// in wardrobe.controller.ts — keep both in sync if this changes.
+export const MAX_PHOTO_BYTES = 20 * 1024 * 1024; // 20MB
+
+export function checkPhotoSize(fileSize: number | undefined): { ok: true } | { ok: false; message: string } {
+  // fileSize is undefined on some platforms/pick methods — when we
+  // genuinely can't know the size ahead of time, let it through here
+  // and rely on the server-side backstop instead of blocking a valid
+  // upload over a missing field.
+  if (fileSize == null) return { ok: true };
+  if (fileSize > MAX_PHOTO_BYTES) {
+    const mb = (fileSize / (1024 * 1024)).toFixed(1);
+    return { ok: false, message: `That photo is ${mb}MB — please use one under ${MAX_PHOTO_BYTES / (1024 * 1024)}MB.` };
+  }
+  return { ok: true };
+}
+
 // Auto-picks the right host for wherever this is running:
 //   - Physical device via Expo Go: extracts the LAN IP from Expo's own
 //     dev-server connection info (the same IP your phone already used

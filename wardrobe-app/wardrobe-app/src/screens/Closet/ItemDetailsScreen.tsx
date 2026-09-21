@@ -17,7 +17,7 @@ import { ItemThumb } from '../../components/ItemThumb';
 import { ItemDetailsForm, EMPTY_ITEM_FORM, ItemFormValues } from '../../components/ItemDetailsForm';
 import {
   getWardrobeItem, moveItemToBin, setItemFavorite, archiveWardrobeItem, unarchiveWardrobeItem,
-  updateWardrobeItem, getAttributeSuggestions, markItemWorn, replaceItemPhoto,
+  updateWardrobeItem, getAttributeSuggestions, markItemWorn, replaceItemPhoto, checkPhotoSize,
 } from '../../api/wardrobeApi';
 import * as ImagePicker from 'expo-image-picker';
 import { spacing, radius } from '../../theme/theme';
@@ -96,6 +96,8 @@ export default function ItemDetailsScreen() {
     if (!perm.granted) return Alert.alert('Permission needed', 'Allow photo access to replace this item\'s picture.');
     const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.8, allowsEditing: true, aspect: [3, 4] });
     if (result.canceled) return;
+    const sizeCheck = checkPhotoSize(result.assets[0].fileSize);
+    if (!sizeCheck.ok) return Alert.alert('Photo too large', sizeCheck.message);
 
     setResaving(true);
     try {

@@ -24,7 +24,7 @@
 //   BG_REMOVAL_PROVIDER ('removebg' | 'gemini' | 'none'),
 //   BG_REMOVAL_API_KEY
 
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, CopyObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
 import sharp from 'sharp';
@@ -91,6 +91,29 @@ export async function getSignedReadUrl(key: string, expiresInSeconds = 3600): Pr
 
 export async function deleteWardrobePhoto(key: string): Promise<void> {
   await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
+}
+
+// Real server-enforced backstop, not just trusting the app's own
+// check. Photos upload directly from the phone to S3 via a presigned
+// URL — the request never passes through this server at all, so
+// there's no way to reject an oversized upload in real time. This
+// runs AFTER the client claims the upload finished (when the item's
+// metadata gets saved): checks the actual uploaded object's real size
+// via S3, and deletes it + rejects the save if it's over the limit.
+// Catches anyone bypassing or tampering with the app's own client-
+// side check — a modified build, a direct API call, anything that
+// doesn't go through the real app. Keep MAX_PHOTO_BYTES here in sync
+// with the client's copy in wardrobeApi.ts.
+export const MAX_PHOTO_BYTES = 20 * 1024 * 1024; // 20MB
+
+export async function verifyUploadedPhotoSize(key: string): Promise<void> {
+  const head = await s3.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
+  const size = head.ContentLength ?? 0;
+  if (size > MAX_PHOTO_BYTES) {
+    await deleteWardrobePhoto(key);
+    const mb = (size / (1024 * 1024)).toFixed(1);
+    throw new Error(`Uploaded photo is ${mb}MB, over the ${MAX_PHOTO_BYTES / (1024 * 1024)}MB limit.`);
+  }
 }
 
 // ---------- Background removal ----------
