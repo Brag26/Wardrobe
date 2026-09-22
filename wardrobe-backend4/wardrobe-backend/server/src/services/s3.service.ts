@@ -149,14 +149,28 @@ export async function verifyUploadedPhotoSize(key: string): Promise<void> {
 // doesn't accept image_url the way the OpenAI-compat shim does) and
 // gets an edited image back the same way.
 async function runGeminiBackgroundRemoval(imageUrl: string, apiKey: string): Promise<Buffer> {
-  const model = process.env.BG_REMOVAL_GEMINI_MODEL || 'gemini-2.5-flash-image';
+  // Fallback default kept in sync with .env.example — gemini-2.5-flash-image
+  // is deprecated (Google shutdown Oct 2, 2026), so the code-level
+  // fallback needs to point at a still-live model too, not just the
+  // example file.
+  const model = process.env.BG_REMOVAL_GEMINI_MODEL || 'gemini-3.1-flash-lite-image';
 
   const imageRes = await fetch(imageUrl);
   if (!imageRes.ok) throw new Error(`Could not fetch source image for Gemini: ${imageRes.status}`);
   const imageBuffer = Buffer.from(await imageRes.arrayBuffer());
   const mimeType = imageRes.headers.get('content-type') || 'image/jpeg';
 
-  const prompt = 'Remove the person/model wearing this garment from the photo. Keep ONLY the clothing item, isolated on a clean plain white background. Preserve the garment\'s exact color, shape, texture, and details — do not alter the item itself, only remove the person and background around it.';
+  // Explicitly transparent, not "white background" — the app's whole
+  // outfit-collage design relies on items layering directly onto a
+  // shared card background with nothing behind them (see
+  // OutfitDetailScreen/OutfitsScreen's collageLayout). A white
+  // background, even if the removal itself "succeeds," would show up
+  // as a visible white box around every item once several are
+  // layered together — genuinely the wrong output for this use case,
+  // not just a cosmetic preference. Named PNG + alpha explicitly since
+  // that's the actual mechanism that makes transparency real rather
+  // than just requested.
+  const prompt = 'Remove the person/model and everything else from this photo — keep ONLY the clothing item itself. Output a PNG with a fully transparent background (real alpha transparency, not a white or colored background) around the garment, cut cleanly along its actual edges. Preserve the garment\'s exact color, shape, texture, and details exactly as shown — do not alter, redesign, or restyle the item itself, only remove everything that is not the garment.';
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -170,7 +184,15 @@ async function runGeminiBackgroundRemoval(imageUrl: string, apiKey: string): Pro
             { inline_data: { mime_type: mimeType, data: imageBuffer.toString('base64') } },
           ],
         }],
-        generationConfig: { responseModalities: ['IMAGE'] },
+        generationConfig: {
+          // Some documentation for the 3.1 image generation indicates
+          // TEXT + IMAGE together is required, unlike the older 2.5
+          // model which accepted IMAGE alone — including both here
+          // since the response-parsing below already specifically
+          // searches for the inline_data/image part and ignores
+          // anything else, so this is safe either way.
+          responseModalities: ['TEXT', 'IMAGE'],
+        },
       }),
     }
   );
