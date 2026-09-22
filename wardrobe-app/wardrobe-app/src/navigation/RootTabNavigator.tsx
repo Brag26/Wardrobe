@@ -68,14 +68,13 @@ export default function RootTabNavigator() {
         component={HomeScreen}
         options={{
           tabBarLabel: 'Home',
-          // Per the client spec: Home is the one screen that should
-          // render with NO bottom tab bar at all (matches the
-          // reference mockup, which shows Home's content running all
-          // the way to the bottom edge with just the floating + button,
-          // no persistent nav chrome). display:'none' on just this
-          // screen's own options overrides the shared tabBarStyle
-          // above without touching every other tab's bar.
-          tabBarStyle: { display: 'none' },
+          // Reversing an earlier decision here — a prior, less complete
+          // reference suggested Home should have no bottom nav at all.
+          // A fuller Figma export of this exact screen (the "Fits" tab's
+          // own home/hub state) clearly shows a persistent 5-tab bottom
+          // nav bar present even here, with this tab highlighted active.
+          // That's the authoritative reference; the earlier removal was
+          // a mistake based on incomplete information.
         }}
       />
       <Tab.Screen name="AraTab" component={AraNavigator} options={{ tabBarLabel: 'Ara' }} />

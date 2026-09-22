@@ -524,6 +524,12 @@ export default function HomeScreen() {
             </Animated.View>
           );
         })}
+        {/* Real glow, not just a slightly bigger shadow — a separate
+            layer behind the button with a large, soft, low-opacity
+            shadow reads as an actual glow, matching the reference; a
+            single shadow on the button itself stays looking like a
+            normal drop shadow no matter how far the radius is pushed. */}
+        <View style={styles.fabGlow} pointerEvents="none" />
         <TouchableOpacity style={styles.fabMain} onPress={toggleFab} activeOpacity={0.85}>
           <Animated.Text style={[styles.fabMainIcon, { transform: [{ rotate: fabAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] }) }] }]}>+</Animated.Text>
         </TouchableOpacity>
@@ -648,6 +654,16 @@ function makeStyles(colors: any, type: any) {
     signOutText: { fontSize: 11, color: colors.inkMuted, textDecorationLine: 'underline' },
     fabBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.25)' },
     fabWrap: { position: 'absolute', bottom: spacing.lg, right: spacing.lg, alignItems: 'flex-end' },
+    // Anchored to the wrap's own bottom-right (where fabMain always
+    // sits, open or closed, since it's the last item in the column) —
+    // larger than the button and centered behind it, with a soft,
+    // low-opacity shadow that reads as an actual glow rather than a
+    // slightly bigger drop shadow.
+    fabGlow: {
+      position: 'absolute', bottom: -10, right: -10, width: 76, height: 76, borderRadius: 38,
+      backgroundColor: colors.black, opacity: 0.35,
+      shadowColor: colors.black, shadowOpacity: 0.5, shadowRadius: 18, shadowOffset: { width: 0, height: 0 }, elevation: 8,
+    },
     fabMain: {
       width: 56, height: 56, borderRadius: 28, backgroundColor: colors.black,
       alignItems: 'center', justifyContent: 'center', elevation: 4,

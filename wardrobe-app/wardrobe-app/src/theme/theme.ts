@@ -116,8 +116,8 @@ export const cardShadow = {
 
 export function buildType(c: typeof lightColors) {
   return {
-    h1: { fontSize: 28, fontWeight: '700' as const, fontFamily: 'DMSans_700Bold', color: c.ink, letterSpacing: -0.4, lineHeight: 34 },
-    h2: { fontSize: 20, fontWeight: '700' as const, fontFamily: 'DMSans_700Bold', color: c.ink, letterSpacing: -0.2, lineHeight: 26 },
+    h1: { fontSize: 28, fontWeight: '600' as const, fontFamily: 'DMSans_600SemiBold', color: c.ink, letterSpacing: -0.4, lineHeight: 34 },
+    h2: { fontSize: 20, fontWeight: '600' as const, fontFamily: 'DMSans_600SemiBold', color: c.ink, letterSpacing: -0.2, lineHeight: 26 },
     h3: { fontSize: 16, fontWeight: '600' as const, fontFamily: 'DMSans_600SemiBold', color: c.ink, letterSpacing: -0.1, lineHeight: 21 },
     body: { fontSize: 14, fontWeight: '400' as const, fontFamily: 'DMSans_400Regular', color: c.ink, lineHeight: 20 },
     muted: { fontSize: 12, fontWeight: '400' as const, fontFamily: 'DMSans_400Regular', color: c.inkMuted, lineHeight: 16 },
