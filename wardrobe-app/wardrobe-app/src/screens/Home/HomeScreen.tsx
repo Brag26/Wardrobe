@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, FlatList, Switch, Animated, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, FlatList, Switch, Animated, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +29,7 @@ export default function HomeScreen() {
   const [itemTab, setItemTab] = useState('All');
   const [refreshing, setRefreshing] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const fabAnim = React.useRef(new Animated.Value(0)).current;
 
   // "Outfit of the Day" — single-tap generate/reveal on the banner
@@ -210,8 +211,42 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <Ionicons name={isDark ? 'moon' : 'sunny'} size={16} color={colors.ink} style={{ marginRight: 2 }} />
             <Switch value={isDark} onValueChange={toggleTheme} trackColor={{ false: colors.border, true: colors.lavenderDeep }} />
+            {/* Home is the one screen with no bottom nav bar (by
+                design, per the client spec) — without this, there was
+                genuinely no way to reach Ara/Closet/Outfits/Chat from
+                Home except "View all" links that only appear once
+                there's data, which left a first-time user with an
+                empty closet feeling stuck, staring at just the
+                "Create outfit" button. This gives Home its own real
+                way out to every tab, matching the menu icon shown in
+                the reference mockup that was never actually wired up. */}
+            <TouchableOpacity style={styles.profileButton} onPress={() => setMenuOpen(true)}>
+              <Ionicons name="menu-outline" size={18} color={colors.ink} />
+            </TouchableOpacity>
           </View>
         </View>
+
+        <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+          <TouchableOpacity style={styles.menuBackdrop} activeOpacity={1} onPress={() => setMenuOpen(false)}>
+            <View style={styles.menuSheet}>
+              {[
+                { label: 'Ara', icon: 'sparkles-outline', go: () => navigation.navigate('AraTab') },
+                { label: 'Closet', icon: 'shirt-outline', go: () => navigation.navigate('ClosetTab') },
+                { label: 'Outfits', icon: 'albums-outline', go: () => navigation.navigate('OutfitsTab') },
+                { label: 'Chat', icon: 'chatbubble-outline', go: () => navigation.navigate('ChatTab') },
+              ].map((item) => (
+                <TouchableOpacity
+                  key={item.label}
+                  style={styles.menuItem}
+                  onPress={() => { setMenuOpen(false); item.go(); }}
+                >
+                  <Ionicons name={item.icon as any} size={18} color={colors.ink} />
+                  <Text style={styles.menuItemText}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         <TouchableOpacity
           style={styles.araBanner}
@@ -517,6 +552,13 @@ function makeStyles(colors: any, type: any) {
     greeting: { ...type.h1 },
     darkModeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     profileButton: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
+    menuBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'flex-end' },
+    menuSheet: {
+      marginTop: 60, marginRight: spacing.lg, backgroundColor: colors.card, borderRadius: radius.md,
+      paddingVertical: spacing.xs, minWidth: 160, ...cardShadow,
+    },
+    menuItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
+    menuItemText: { ...type.body, fontWeight: '600' },
     profileButtonIcon: { fontSize: 14 },
     darkModeLabel: { fontSize: 14 },
     araBanner: {
