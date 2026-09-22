@@ -502,7 +502,17 @@ function makeStyles(colors: any, type: any) {
     container: { flex: 1, backgroundColor: colors.bg },
     coldStartBanner: { backgroundColor: colors.cream, paddingVertical: 6, paddingHorizontal: spacing.lg },
     coldStartBannerText: { fontSize: 11, color: colors.inkMuted, textAlign: 'center' },
-    scroll: { paddingBottom: spacing.xxl },
+    // Previously 48px (spacing.xxl) — nowhere near enough. The FAB is
+    // fixed to the viewport bottom-right regardless of scroll position,
+    // and when expanded it stacks up to 5 action buttons roughly 360px
+    // tall above the main button. With only 48px of buffer, the empty-
+    // state cards' own CTA buttons (Create outfit / Add Item) landed
+    // directly underneath the FAB's resting position, and the expanded
+    // action list covered them outright — exactly the overlap shown in
+    // testing. This gives real clearance so the FAB, open or closed,
+    // floats in actual empty space below the content instead of on
+    // top of it.
+    scroll: { paddingBottom: 280 },
     topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
     greeting: { ...type.h1 },
     darkModeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },

@@ -137,7 +137,27 @@ export default function ChatScreen() {
     try {
       await sendChatMessage(finalText);
       await load();
-    } catch {} finally {
+    } catch (e: any) {
+      // Previously `catch {}` here — a real silent failure. If sending
+      // failed for any reason (an expired auth token, a network blip,
+      // a backend error), the message just sat there with no reply and
+      // no explanation at all, exactly what this looked like from the
+      // outside: "Hi" and "What happened" sent, nothing back, nothing
+      // wrong-looking on screen either. Now logs the real error and
+      // shows an actual error bubble in the thread, so a failure is
+      // visibly a failure instead of looking like Ara just went quiet.
+      console.error('[ChatScreen] sendChatMessage failed:', e);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `error-${Date.now()}`,
+          role: 'assistant',
+          text: e?.message?.includes('token')
+            ? "Looks like you got signed out. Try signing out and back in from the menu, then send that again."
+            : "Couldn't send that — check your connection and try again.",
+        },
+      ]);
+    } finally {
       setSending(false);
       scrollDown();
     }
