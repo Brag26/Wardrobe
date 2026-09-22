@@ -33,14 +33,22 @@ export default function AddItemScreen() {
 
   // QA flagged this app-wide: leaving mid-edit with no warning. Here
   // that means a photo picked or any real field filled in before
-  // tapping Save — once savedItem is set, the screen shows the
-  // confirmation view instead of the form, so no warning is needed at
-  // that point, saving already happened.
+  // tapping Save. Uses a ref (savedSuccessfully) rather than reading
+  // the savedItem state variable directly — matches the same safe
+  // pattern already used in CreateOutfitScreen/StartPackingScreen.
+  // Refs update synchronously with no React re-render/closure timing
+  // involved, which matters here specifically: this is what turned out
+  // to be causing the actual bug — tapping "Done" right after a
+  // successful save could still read a stale closure where savedItem
+  // hadn't been seen as set yet, so the warning intercepted goBack()
+  // and silently ate the navigation (no visible alert if the closure
+  // was stale in just the wrong way), making the screen look stuck.
+  const savedSuccessfully = React.useRef(false);
   useUnsavedChangesWarning(React.useCallback(() => {
-    if (savedItem) return false;
+    if (savedSuccessfully.current) return false;
     return !!imageUri || !!form.category || !!form.color || form.name.trim() !== '' ||
       form.brand.trim() !== '' || form.price.trim() !== '' || form.size.trim() !== '' || form.material.trim() !== '';
-  }, [savedItem, imageUri, form]));
+  }, [imageUri, form]));
   const [scanning, setScanning] = useState(false);
   const [scanNote, setScanNote] = useState<string | null>(null);
   const [identifying, setIdentifying] = useState(false);
@@ -218,6 +226,7 @@ export default function AddItemScreen() {
         size: form.size.trim() || undefined,
         material: form.material.trim() || undefined,
       });
+      savedSuccessfully.current = true;
       setSavedItem(created);
     } catch (e: any) {
       Alert.alert('Could not save', e.message);
