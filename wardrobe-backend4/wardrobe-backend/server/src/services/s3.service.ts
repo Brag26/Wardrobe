@@ -203,7 +203,22 @@ async function runGeminiBackgroundRemoval(imageUrl: string, apiKey: string): Pro
   const parts = data?.candidates?.[0]?.content?.parts ?? [];
   const imagePart = parts.find((p: any) => p.inline_data || p.inlineData);
   const inline = imagePart?.inline_data ?? imagePart?.inlineData;
-  if (!inline?.data) throw new Error('Gemini did not return an edited image — check the model name supports image output');
+  if (!inline?.data) {
+    // Previously this threw a generic message with no visibility into
+    // WHAT Gemini actually sent back instead of an image — a text-only
+    // response (very plausibly a safety-policy refusal, since this
+    // task edits a photo of a real person) would hit this exact path
+    // with zero clue why. Surfacing the actual text part, finishReason,
+    // and any promptFeedback block reason so the next failure in the
+    // logs shows the real cause instead of just "no image came back."
+    const textPart = parts.find((p: any) => typeof p.text === 'string')?.text;
+    const finishReason = data?.candidates?.[0]?.finishReason;
+    const blockReason = data?.promptFeedback?.blockReason;
+    throw new Error(
+      `Gemini did not return an edited image. finishReason=${finishReason ?? 'none'} blockReason=${blockReason ?? 'none'}` +
+      (textPart ? ` responseText="${textPart.slice(0, 300)}"` : ' (no text part in response either)')
+    );
+  }
 
   return Buffer.from(inline.data, 'base64');
 }
