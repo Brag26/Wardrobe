@@ -259,7 +259,12 @@ export default function OutfitsScreen() {
                 onPress={() => handleDelete(item.id, item.name)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <FigmaIcon name="close" size={13} color={colors.white} />
+                {/* QA flagged this — it already performs a real delete
+                    (handleDelete), but used the "close" (X) icon,
+                    which reads as "dismiss this card" rather than
+                    "delete this outfit." Trash icon matches what it
+                    actually does. */}
+                <FigmaIcon name="trash" size={13} color={colors.white} />
               </TouchableOpacity>
 
               {/* Whole outfit as one blended flat-lay, not a bordered

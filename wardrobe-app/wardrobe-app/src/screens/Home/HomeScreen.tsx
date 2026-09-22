@@ -209,8 +209,8 @@ export default function HomeScreen() {
             <TouchableOpacity style={styles.profileButton} onPress={() => navigation.navigate('Profile', { screen: 'StyleProfileHub' })}>
               <Ionicons name="person-outline" size={16} color={colors.ink} />
             </TouchableOpacity>
-            <Ionicons name={isDark ? 'moon' : 'sunny'} size={16} color={colors.ink} style={{ marginRight: 2 }} />
-            <Switch value={isDark} onValueChange={toggleTheme} trackColor={{ false: colors.border, true: colors.lavenderDeep }} />
+            {/* Dark mode toggle removed — theme is force-disabled to
+                light-only now (see ThemeContext.tsx). */}
             {/* Home is the one screen with no bottom nav bar (by
                 design, per the client spec) — without this, there was
                 genuinely no way to reach Ara/Closet/Outfits/Chat from

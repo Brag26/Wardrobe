@@ -17,7 +17,14 @@ export function Button({ label, onPress, variant = 'primary', loading, disabled 
   const backgroundColor =
     variant === 'primary' ? colors.black :
     variant === 'secondary' ? colors.cream : 'transparent';
-  const borderColor = variant === 'outline' ? colors.border : 'transparent';
+  // QA flagged this exact button (the "Shuffle again"/cancel-style
+  // action after Ara builds an outfit) as not clearly visible —
+  // secondary had no border at all, just near-white text on a
+  // near-white background with nothing to define its edges. Giving it
+  // the same border outline gets a real, visible boundary instead of
+  // relying on a background-color difference that barely reads on a
+  // white/cream screen.
+  const borderColor = variant === 'outline' || variant === 'secondary' ? colors.border : 'transparent';
   const textColor = variant === 'primary' ? colors.white : colors.ink;
 
   return (
@@ -27,7 +34,7 @@ export function Button({ label, onPress, variant = 'primary', loading, disabled 
       activeOpacity={0.85}
       style={[
         styles.base,
-        { backgroundColor, borderColor, borderWidth: variant === 'outline' ? 1 : 0 },
+        { backgroundColor, borderColor, borderWidth: variant === 'outline' || variant === 'secondary' ? 1 : 0 },
         (disabled || loading) && styles.disabled,
       ]}
     >

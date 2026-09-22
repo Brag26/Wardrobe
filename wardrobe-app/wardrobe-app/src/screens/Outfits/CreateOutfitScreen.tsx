@@ -20,6 +20,7 @@ import { ItemThumb } from '../../components/ItemThumb';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { Button } from '../../components/Button';
 import { getWardrobeItems, createOutfit, updateOutfit, getOutfit, getOutfitCategories, getAttributeSuggestions } from '../../api/wardrobeApi';
+import { useUnsavedChangesWarning } from '../../utils/useUnsavedChangesWarning';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
 
@@ -56,6 +57,8 @@ export default function CreateOutfitScreen() {
   const [categories, setCategories] = useState<string[]>(['casual', 'formal', 'business', 'evening_wear', 'sport']);
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(!editOutfitId);
+  const savedSuccessfully = React.useRef(false);
+  const originalValues = React.useRef<{ name: string; category: string | null; aesthetic: string | null; selectedIds: string[] } | null>(null);
 
   useEffect(() => {
     getWardrobeItems().then(setItems).catch(() => {});
@@ -67,25 +70,42 @@ export default function CreateOutfitScreen() {
         setCategory(o.category ?? null);
         setAesthetic(o.aesthetic ?? null);
         setSelectedIds(o.itemIds ?? []);
+        originalValues.current = { name: o.name ?? '', category: o.category ?? null, aesthetic: o.aesthetic ?? null, selectedIds: o.itemIds ?? [] };
         setLoaded(true);
       }).catch(() => setLoaded(true));
     }
   }, [editOutfitId]);
+
+  // QA flagged this app-wide: leaving a create/edit screen with
+  // unsaved changes gave no warning at all. For a new outfit, "changed"
+  // means anything's been entered at all; for editing an existing one,
+  // it's a real comparison against what was actually loaded, so
+  // opening to edit and leaving without touching anything doesn't
+  // false-trigger a warning.
+  useUnsavedChangesWarning(React.useCallback(() => {
+    if (savedSuccessfully.current) return false;
+    if (!editOutfitId) {
+      return name.trim() !== '' || selectedIds.length > 0 || category !== null || aesthetic !== null;
+    }
+    const orig = originalValues.current;
+    if (!orig) return false;
+    return (
+      name !== orig.name || category !== orig.category || aesthetic !== orig.aesthetic ||
+      JSON.stringify([...selectedIds].sort()) !== JSON.stringify([...orig.selectedIds].sort())
+    );
+  }, [editOutfitId, name, category, aesthetic, selectedIds]));
 
   const toggleItem = (id: string) =>
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const handleSave = async () => {
     if (selectedIds.length === 0) return Alert.alert('Pick some items', 'Select at least one piece for this outfit.');
-    if (!name.trim() && !editOutfitId) {
-      Alert.alert(
-        'Give it a name?',
-        "You haven't named this outfit yet — you can always rename it later from My Outfits.",
-        [
-          { text: 'Go back and name it', style: 'cancel' },
-          { text: 'Save as "Untitled outfit"', onPress: () => doSave() },
-        ]
-      );
+    // Previously this let the user bypass naming entirely via a "Save
+    // as 'Untitled outfit'" option — QA flagged this as confusing and
+    // asked for a hard requirement instead: no name, no save, just a
+    // clear blocking message telling them what's missing.
+    if (!name.trim()) {
+      Alert.alert('Please enter a name for the outfit', undefined, [{ text: 'OK' }]);
       return;
     }
     doSave();
@@ -103,6 +123,7 @@ export default function CreateOutfitScreen() {
           category, aesthetic,
         });
       }
+      savedSuccessfully.current = true;
       navigation.goBack();
     } catch (e: any) {
       Alert.alert('Could not save', e.message);

@@ -12,7 +12,25 @@ import { ensureBackgroundRemovalForItems } from '../services/s3.service';
 import {
   pickOutfitItems, buildReasoningSteps, generateOutfitStory, computeMatchScore, categoryInSlot,
 } from '../services/aiStylist.service';
-import { StylingSession, Outfit } from '../types/domain';
+import { StylingSession, Outfit, Mood } from '../types/domain';
+
+// QA-flagged: Ara-generated outfits all showed up as "Untitled
+// outfit" in My Outfits, with no way to tell them apart at a glance.
+// Names them from the mood the person actually selected when starting
+// this session — simple, but real, distinguishing information instead
+// of a generic placeholder every single time.
+const MOOD_OUTFIT_NAMES: Record<Mood, string> = {
+  confident: 'Confident Edit',
+  romantic: 'Romantic Look',
+  elegant: 'Elegant Ensemble',
+  playful: 'Playful Pick',
+  calm: 'Calm & Easy',
+  creative: 'Creative Mix',
+};
+
+function nameForMood(mood: Mood | null): string | null {
+  return mood ? MOOD_OUTFIT_NAMES[mood] : null;
+}
 
 // POST /api/styling-sessions   body: { occasion, mood }
 export async function startSession(req: Request, res: Response) {
@@ -53,7 +71,7 @@ export async function generateOutfitForSession(req: Request, res: Response) {
   const now = Date.now();
   const outfit: Outfit = {
     id: randomUUID(), userId, sessionId: id,
-    name: null, description: null,
+    name: nameForMood(session.mood), description: null,
     itemIdsBySlot: {
       tops: pickedItems.filter((i) => categoryInSlot(i.category, 'top')).map((i) => i.id),
       pants: pickedItems.filter((i) => categoryInSlot(i.category, 'bottom')).map((i) => i.id),

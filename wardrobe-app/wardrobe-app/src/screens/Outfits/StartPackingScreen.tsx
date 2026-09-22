@@ -3,20 +3,21 @@
 // name, destination, start/end dates, then "Select outfit" to attach
 // outfits to the trip.
 //
-// NOTE on dates: no date-picker library is installed in this project
-// (would need a native rebuild to add one), so dates are plain
-// YYYY-MM-DD text fields rather than a calendar picker widget. Same
-// data shape either way — swap the input for a real date picker later
-// without touching the backend.
+// Dates use a real calendar picker (react-native-calendars, already a
+// dependency for the main Calendar tab — no new native module added)
+// rather than manual YYYY-MM-DD text entry, which QA flagged as
+// error-prone. Past dates are disabled via minDate.
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, Alert, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Calendar, DateData } from 'react-native-calendars';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { Button } from '../../components/Button';
 import { createPacking, uploadPackingCoverImage } from '../../api/wardrobeApi';
+import { useUnsavedChangesWarning } from '../../utils/useUnsavedChangesWarning';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
 
@@ -30,7 +31,18 @@ export default function StartPackingScreen() {
   const [destination, setDestination] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [pickerFor, setPickerFor] = useState<'start' | 'end' | null>(null);
+  const todayISO = () => new Date().toISOString().slice(0, 10);
   const [saving, setSaving] = useState(false);
+  const savedSuccessfully = React.useRef(false);
+
+  // QA flagged this app-wide — any real input (cover photo, name,
+  // destination, either date) counts as something worth warning about
+  // before it's lost.
+  useUnsavedChangesWarning(React.useCallback(() => {
+    if (savedSuccessfully.current) return false;
+    return !!coverUri || name.trim() !== '' || destination.trim() !== '' || !!startDate || !!endDate;
+  }, [coverUri, name, destination, startDate, endDate]));
 
   const pickCover = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -49,6 +61,7 @@ export default function StartPackingScreen() {
         name: name.trim(), destination: destination.trim() || null,
         startDate: startDate.trim() || null, endDate: endDate.trim() || null, coverImageUrl,
       });
+      savedSuccessfully.current = true;
       navigation.replace('SelectPackingOutfits', { packingId: packing.id });
     } catch (e: any) {
       Alert.alert('Could not start packing', e.message);
@@ -80,13 +93,46 @@ export default function StartPackingScreen() {
         <View style={styles.dateRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>Start date</Text>
-            <TextInput style={styles.input} value={startDate} onChangeText={setStartDate} placeholder="YYYY-MM-DD" placeholderTextColor={colors.inkMuted} />
+            <TouchableOpacity style={styles.input} onPress={() => setPickerFor('start')}>
+              <Text style={startDate ? styles.dateValueText : styles.dateValuePlaceholder}>{startDate || 'Select date'}</Text>
+            </TouchableOpacity>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>End date</Text>
-            <TextInput style={styles.input} value={endDate} onChangeText={setEndDate} placeholder="YYYY-MM-DD" placeholderTextColor={colors.inkMuted} />
+            <TouchableOpacity style={styles.input} onPress={() => setPickerFor('end')}>
+              <Text style={endDate ? styles.dateValueText : styles.dateValuePlaceholder}>{endDate || 'Select date'}</Text>
+            </TouchableOpacity>
           </View>
         </View>
+
+        {/* QA flagged the previous manual YYYY-MM-DD text fields —
+            error-prone to type correctly, no validation, easy to enter
+            an impossible date. Reuses react-native-calendars (already
+            a dependency for the main Calendar tab) rather than adding
+            a new one — genuinely picking a date from a real calendar,
+            with past dates disabled via minDate, and the end-date
+            picker additionally floored at whatever start date was
+            already chosen so an end date before the trip starts isn't
+            selectable either. */}
+        <Modal visible={pickerFor !== null} transparent animationType="fade" onRequestClose={() => setPickerFor(null)}>
+          <TouchableOpacity style={styles.dateModalBackdrop} activeOpacity={1} onPress={() => setPickerFor(null)}>
+            <View style={styles.dateModalCard}>
+              <Calendar
+                minDate={pickerFor === 'end' && startDate ? startDate : todayISO()}
+                onDayPress={(day: DateData) => {
+                  if (pickerFor === 'start') {
+                    setStartDate(day.dateString);
+                    if (endDate && endDate < day.dateString) setEndDate('');
+                  } else if (pickerFor === 'end') {
+                    setEndDate(day.dateString);
+                  }
+                  setPickerFor(null);
+                }}
+                theme={{ todayTextColor: colors.lavenderDeep, arrowColor: colors.inkMuted, selectedDayBackgroundColor: colors.ink }}
+              />
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         <View style={{ height: spacing.md }} />
         <Button label="Select outfit" onPress={handleSelectOutfit} loading={saving} />
@@ -110,5 +156,9 @@ function makeStyles(colors: any) {
       paddingVertical: 12, fontSize: 14, color: colors.ink, backgroundColor: colors.bgSoft,
     },
     dateRow: { flexDirection: 'row', gap: spacing.sm },
+    dateValueText: { fontSize: 15, color: colors.ink },
+    dateValuePlaceholder: { fontSize: 15, color: colors.inkMuted },
+    dateModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
+    dateModalCard: { backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.sm, width: '90%' },
   });
 }

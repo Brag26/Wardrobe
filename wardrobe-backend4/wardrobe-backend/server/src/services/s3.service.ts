@@ -320,6 +320,7 @@ export async function ensureBackgroundRemovalForItems(userId: string, itemIds: s
 
 export async function processBackgroundRemovalInBackground(userId: string, itemId: string, s3Key: string) {
   addCacheHeadersRetroactively(s3Key); // fire-and-forget — helps the original load fast even before/if removal finishes
+  console.log(`[s3.service] Background removal starting for item ${itemId}...`);
   try {
     await updateWardrobeItem(userId, itemId, { backgroundRemoval: { status: 'processing', error: null } });
     const { processedKey } = await removeBackground(s3Key, itemId, userId);
@@ -328,6 +329,12 @@ export async function processBackgroundRemovalInBackground(userId: string, itemI
       imageUrl: getPublicUrl(processedKey),
       backgroundRemoval: { status: 'done', error: null },
     });
+    // Previously nothing logged on success either — meaning a silent
+    // success and a silent "never ran at all" looked identical in the
+    // logs: both showed nothing. Adding a start line above and a done
+    // line here means any test from now on gives an unambiguous
+    // answer, not another round of "did this even fire?"
+    console.log(`[s3.service] Background removal done for item ${itemId}.`);
   } catch (err: any) {
     // Previously this saved the error message to the database
     // (backgroundRemoval.error) but never actually printed it to the

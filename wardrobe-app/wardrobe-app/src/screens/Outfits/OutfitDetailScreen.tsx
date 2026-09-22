@@ -8,7 +8,7 @@
 // edit form. Share/Delete live here too, alongside Edit, rather than
 // only on the small card.
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { ScreenHeader } from '../../components/ScreenHeader';
@@ -110,9 +110,17 @@ export default function OutfitDetailScreen() {
   }
 
   if (loading || !outfit) {
+    // QA flagged this screen for showing bare placeholder text with
+    // no animation while photos load — this particular state was
+    // actually worse than that, completely blank with no feedback at
+    // all. Real spinner plus the requested copy now.
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <ScreenHeader title="Outfit" />
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={colors.inkMuted} />
+          <Text style={styles.loadingText}>Please wait, while we reveal your outfit</Text>
+        </View>
       </SafeAreaView>
     );
   }
@@ -146,7 +154,10 @@ export default function OutfitDetailScreen() {
           ) : collageReady.length === 1 ? (
             <ItemThumb item={collageReady[0]} size={300} noBorder />
           ) : (
-            <Text style={styles.processingText}>Photos still processing…</Text>
+            <View style={styles.processingWrap}>
+              <ActivityIndicator size="small" color={colors.inkMuted} />
+              <Text style={styles.processingText}>Please wait, while we reveal your outfit</Text>
+            </View>
           )}
         </View>
 
@@ -205,7 +216,10 @@ function makeStyles(colors: any, type: any) {
       backgroundColor: colors.cream, borderRadius: radius.lg, overflow: 'hidden', marginTop: spacing.md,
     },
     collagePiece: { position: 'absolute' },
-    processingText: { flex: 1, textAlign: 'center', textAlignVertical: 'center', color: colors.inkMuted, fontSize: 13 },
+    processingText: { color: colors.inkMuted, fontSize: 13, marginTop: spacing.sm, textAlign: 'center' },
+    processingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
+    loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingHorizontal: spacing.xl },
+    loadingText: { color: colors.inkMuted, fontSize: 13, textAlign: 'center' },
     notReadySection: { paddingHorizontal: spacing.lg, marginTop: spacing.md, alignItems: 'center' },
     notReadyLabel: { fontSize: 11, color: colors.inkMuted, marginBottom: spacing.sm },
     notReadyRow: { flexDirection: 'row', gap: spacing.sm },

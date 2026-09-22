@@ -10,6 +10,7 @@ import { ScreenHeader } from '../../components/ScreenHeader';
 import { Button } from '../../components/Button';
 import { ItemDetailsForm, EMPTY_ITEM_FORM, ItemFormValues } from '../../components/ItemDetailsForm';
 import { uploadWardrobeItem, getAttributeSuggestions, scanItemTag, checkPhotoSize, MAX_PHOTO_BYTES } from '../../api/wardrobeApi';
+import { useUnsavedChangesWarning } from '../../utils/useUnsavedChangesWarning';
 import { checkPhotoBlur } from '../../utils/blurCheck';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
@@ -29,6 +30,17 @@ export default function AddItemScreen() {
   const [form, setForm] = useState<ItemFormValues>(EMPTY_ITEM_FORM);
   const [categorySearch, setCategorySearch] = useState('');
   const [savedItem, setSavedItem] = useState<any>(null);
+
+  // QA flagged this app-wide: leaving mid-edit with no warning. Here
+  // that means a photo picked or any real field filled in before
+  // tapping Save — once savedItem is set, the screen shows the
+  // confirmation view instead of the form, so no warning is needed at
+  // that point, saving already happened.
+  useUnsavedChangesWarning(React.useCallback(() => {
+    if (savedItem) return false;
+    return !!imageUri || !!form.category || !!form.color || form.name.trim() !== '' ||
+      form.brand.trim() !== '' || form.price.trim() !== '' || form.size.trim() !== '' || form.material.trim() !== '';
+  }, [savedItem, imageUri, form]));
   const [scanning, setScanning] = useState(false);
   const [scanNote, setScanNote] = useState<string | null>(null);
   const [identifying, setIdentifying] = useState(false);

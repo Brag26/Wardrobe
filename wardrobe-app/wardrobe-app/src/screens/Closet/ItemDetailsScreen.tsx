@@ -19,6 +19,7 @@ import {
   getWardrobeItem, moveItemToBin, setItemFavorite, archiveWardrobeItem, unarchiveWardrobeItem,
   updateWardrobeItem, getAttributeSuggestions, markItemWorn, replaceItemPhoto, checkPhotoSize,
 } from '../../api/wardrobeApi';
+import { useUnsavedChangesWarning } from '../../utils/useUnsavedChangesWarning';
 import * as ImagePicker from 'expo-image-picker';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
@@ -46,6 +47,7 @@ export default function ItemDetailsScreen() {
   const [item, setItem] = useState<any>(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<ItemFormValues>(EMPTY_ITEM_FORM);
+  const originalForm = React.useRef<ItemFormValues | null>(null);
   const [categorySearch, setCategorySearch] = useState('');
   const [saving, setSaving] = useState(false);
   const [suggestions, setSuggestions] = useState({
@@ -53,9 +55,21 @@ export default function ItemDetailsScreen() {
   });
 
   useEffect(() => {
-    getWardrobeItem(itemId).then((i) => { setItem(i); setForm(itemToForm(i)); }).catch(() => {});
+    getWardrobeItem(itemId).then((i) => {
+      setItem(i);
+      const f = itemToForm(i);
+      setForm(f);
+      originalForm.current = f;
+    }).catch(() => {});
     getAttributeSuggestions().then(setSuggestions).catch(() => {});
   }, [itemId]);
+
+  // QA flagged this app-wide — only relevant while actually in edit
+  // mode; the read-only view has nothing to lose by navigating away.
+  useUnsavedChangesWarning(React.useCallback(() => {
+    if (!editing || !originalForm.current) return false;
+    return JSON.stringify(form) !== JSON.stringify(originalForm.current);
+  }, [editing, form]));
 
   const updateForm = (patch: Partial<ItemFormValues>) => setForm((prev) => ({ ...prev, ...patch }));
 
@@ -122,6 +136,7 @@ export default function ItemDetailsScreen() {
         size: form.size.trim() || null, material: form.material.trim() || null,
       });
       setItem(updated);
+      originalForm.current = itemToForm(updated);
       setEditing(false);
     } catch (e: any) {
       Alert.alert("Couldn't save", e.message);
