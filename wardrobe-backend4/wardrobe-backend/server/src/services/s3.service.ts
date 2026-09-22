@@ -329,6 +329,12 @@ export async function processBackgroundRemovalInBackground(userId: string, itemI
       backgroundRemoval: { status: 'done', error: null },
     });
   } catch (err: any) {
+    // Previously this saved the error message to the database
+    // (backgroundRemoval.error) but never actually printed it to the
+    // server logs — meaning a genuine failure here left zero trace in
+    // Render's logs, exactly the gap that made this issue impossible
+    // to diagnose from logs alone. Now it's actually visible.
+    console.error(`[s3.service] Background removal failed for item ${itemId}:`, err);
     await updateWardrobeItem(userId, itemId, {
       backgroundRemoval: { status: 'failed', error: err.message ?? 'Unknown error' },
     });
