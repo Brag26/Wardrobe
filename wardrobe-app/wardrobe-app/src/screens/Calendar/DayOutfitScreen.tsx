@@ -7,13 +7,13 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { Button } from '../../components/Button';
 import { ItemThumb } from '../../components/ItemThumb';
 import { listOutfits, getItemsByIds, getCalendarDay, setCalendarDay, deleteCalendarDay } from '../../api/wardrobeApi';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
+import { AppIcon } from '../../components/icons/AppIcons';
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr + 'T00:00:00');
@@ -84,7 +84,7 @@ export default function DayOutfitScreen() {
     return (
       <SafeAreaView style={styles.wrapContainer} edges={['top']}>
         <View style={styles.wrapCenter}>
-          <Ionicons name="checkmark-circle" size={56} color="#8FE3AE" />
+          <AppIcon name="checkmarkCircle" size={56} color="#8FE3AE" />
           <Text style={styles.wrapTitle}>Successfully Wrapped</Text>
           <Text style={styles.wrapSubtitle}>
             {formatDate(date)}'s look is set — keeping every outfit comfy, confident, and on-brand every moment with a smile.

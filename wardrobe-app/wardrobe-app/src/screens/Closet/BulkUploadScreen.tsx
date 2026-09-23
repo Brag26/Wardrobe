@@ -14,7 +14,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { FigmaIcon } from '../../components/icons/FigmaIcon';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { Button } from '../../components/Button';
@@ -23,6 +22,7 @@ import { uploadWardrobeItemsBulk, getAttributeSuggestions, checkPhotoSize } from
 import { checkPhotoBlur } from '../../utils/blurCheck';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
+import { AppIcon } from '../../components/icons/AppIcons';
 
 const FALLBACK_CATEGORIES = ['top', 'bottom', 'dress', 'shoes', 'bag', 'accessory', 'outerwear'];
 const FALLBACK_COLORS = ['black', 'white', 'red', 'blue', 'green', 'pink', 'beige', 'navy'];
@@ -126,7 +126,7 @@ export default function BulkUploadScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.doneWrap}>
-          <Ionicons name="checkmark-circle" size={56} color={colors.success ?? '#3B8352'} />
+          <AppIcon name="checkmarkCircle" size={56} color={colors.success ?? '#3B8352'} />
           <Text style={[type.h2, { marginTop: spacing.md }]}>Successfully added</Text>
           <Text style={[type.muted, { textAlign: 'center', marginTop: 4 }]}>
             {photos.length} item{photos.length === 1 ? '' : 's'} added to your closet — backgrounds are being cleaned up now, this can take a minute.
@@ -175,7 +175,7 @@ export default function BulkUploadScreen() {
                 <Text style={styles.addMoreLabel}>Add more images</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.addMoreTile} onPress={pickFromClipboard}>
-                <Ionicons name="clipboard-outline" size={22} color={colors.ink} />
+                <AppIcon name="clipboard" size={22} color={colors.ink} />
                 <Text style={styles.addMoreLabel}>Paste</Text>
               </TouchableOpacity>
             </View>

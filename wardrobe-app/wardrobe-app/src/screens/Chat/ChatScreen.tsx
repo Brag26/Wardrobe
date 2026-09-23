@@ -10,6 +10,7 @@ import { AraMascot } from '../../components/AraMascot';
 import { ItemThumb } from '../../components/ItemThumb';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
+import { AppIcon } from '../../components/icons/AppIcons';
 
 const CHAT_SUGGESTIONS = [
   'What should I wear today?',
@@ -183,7 +184,7 @@ export default function ChatScreen() {
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.headerButton} onPress={handleRefresh}>
-            {refreshingHistory ? <ActivityIndicator size="small" /> : <Ionicons name="refresh" size={15} color={colors.ink} />}
+            {refreshingHistory ? <ActivityIndicator size="small" /> : <AppIcon name="refresh" size={15} color={colors.ink} />}
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={handleDelete}>
             <FigmaIcon name="trash" size={15} color={colors.ink} />
@@ -257,7 +258,7 @@ export default function ChatScreen() {
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillRow} contentContainerStyle={{ gap: spacing.xs, paddingHorizontal: spacing.md }}>
           <TouchableOpacity style={[styles.pill, styles.pillAction]} onPress={() => navigation.navigate('OutfitsTab')}>
-            <Ionicons name="shirt-outline" size={12} color={colors.white} />
+            <AppIcon name="shirt" size={12} color={colors.white} />
             <Text style={[styles.pillText, styles.pillActionText]}> Show my outfits</Text>
           </TouchableOpacity>
           {CHAT_SUGGESTIONS.map((s) => (
@@ -278,10 +279,10 @@ export default function ChatScreen() {
 
         <View style={styles.inputRow}>
           <TouchableOpacity style={styles.iconButton} onPress={pickAttachment}>
-            <Ionicons name="attach-outline" size={20} color={colors.ink} />
+            <AppIcon name="attach" size={20} color={colors.ink} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={handleVoice}>
-            <Ionicons name={listening ? 'radio-button-on' : 'mic-outline'} size={19} color={listening ? colors.danger ?? '#C0433A' : colors.ink} />
+            {listening ? <AppIcon name="recordDot" size={19} color={colors.danger ?? '#C0433A'} /> : <AppIcon name="mic" size={19} color={colors.ink} />}
           </TouchableOpacity>
           <TextInput
             style={styles.input}
@@ -292,7 +293,7 @@ export default function ChatScreen() {
             onSubmitEditing={() => send(input)}
           />
           <TouchableOpacity style={styles.sendButton} onPress={() => send(input)} disabled={sending}>
-            <Ionicons name="arrow-forward" size={17} color={colors.white} />
+            <AppIcon name="arrowForward" size={17} color={colors.white} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

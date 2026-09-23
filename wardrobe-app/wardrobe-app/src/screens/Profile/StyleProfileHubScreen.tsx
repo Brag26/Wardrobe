@@ -3,10 +3,10 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
+import { AppIcon } from '../../components/icons/AppIcons';
 
 export default function StyleProfileHubScreen() {
   const navigation = useNavigation<any>();
@@ -19,21 +19,21 @@ export default function StyleProfileHubScreen() {
       <Text style={styles.subtitle}>The more Ara knows, the better she picks for you.</Text>
 
       <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('BodyShape')} activeOpacity={0.85}>
-        <View style={styles.iconWrap}><Ionicons name="body-outline" size={20} color={colors.ink} /></View>
+        <View style={styles.iconWrap}><AppIcon name="body" size={20} color={colors.ink} /></View>
         <View style={{ flex: 1 }}>
           <Text style={styles.cardTitle}>Body Shape</Text>
           <Text style={styles.cardDesc}>Pick the silhouette that's most like you</Text>
         </View>
-        <Ionicons name="chevron-forward" size={16} color={colors.inkMuted} />
+        <AppIcon name="chevronForward" size={16} color={colors.inkMuted} />
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ColorAnalysis')} activeOpacity={0.85}>
-        <View style={styles.iconWrap}><Ionicons name="color-palette-outline" size={20} color={colors.ink} /></View>
+        <View style={styles.iconWrap}><AppIcon name="colorPalette" size={20} color={colors.ink} /></View>
         <View style={{ flex: 1 }}>
           <Text style={styles.cardTitle}>Color Analysis</Text>
           <Text style={styles.cardDesc}>Real AI reads your undertone from a selfie</Text>
         </View>
-        <Ionicons name="chevron-forward" size={16} color={colors.inkMuted} />
+        <AppIcon name="chevronForward" size={16} color={colors.inkMuted} />
       </TouchableOpacity>
     </SafeAreaView>
   );

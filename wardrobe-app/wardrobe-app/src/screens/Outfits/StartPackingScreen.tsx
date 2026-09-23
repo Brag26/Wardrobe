@@ -13,13 +13,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar, DateData } from 'react-native-calendars';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { Button } from '../../components/Button';
 import { createPacking, uploadPackingCoverImage } from '../../api/wardrobeApi';
 import { useUnsavedChangesWarning } from '../../utils/useUnsavedChangesWarning';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
+import { AppIcon } from '../../components/icons/AppIcons';
 
 export default function StartPackingScreen() {
   const navigation = useNavigation<any>();
@@ -78,7 +78,7 @@ export default function StartPackingScreen() {
         <TouchableOpacity style={styles.coverBox} onPress={pickCover} activeOpacity={0.85}>
           {coverUri ? <Image source={{ uri: coverUri }} style={styles.coverImage} /> : (
             <View style={{ alignItems: 'center' }}>
-              <Ionicons name="image-outline" size={26} color={colors.inkMuted} />
+              <AppIcon name="image" size={26} color={colors.inkMuted} />
               <Text style={{ color: colors.inkMuted, marginTop: 4 }}>Change cover image</Text>
             </View>
           )}

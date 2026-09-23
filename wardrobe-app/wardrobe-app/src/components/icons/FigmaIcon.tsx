@@ -134,7 +134,11 @@ export function FigmaIcon({ name, size = 24, color = '#1A1A1A', style }: FigmaIc
           key={i}
           d={p.d}
           stroke={p.stroke ? fill : undefined}
-          strokeWidth={p.stroke ? 2 : undefined}
+          // Was a flat 2 for every stroked icon here — thicker than the
+          // rest of the app's hand-copied Figma icons (mostly 1.5, some
+          // stray 1.7/1.9), which is why strokes read as inconsistent
+          // from icon to icon. Standardized to 1.5 everywhere.
+          strokeWidth={p.stroke ? 1.5 : undefined}
           strokeLinecap={p.stroke ? 'round' : undefined}
           strokeLinejoin={p.stroke ? 'round' : undefined}
           fill={p.stroke ? 'none' : fill}

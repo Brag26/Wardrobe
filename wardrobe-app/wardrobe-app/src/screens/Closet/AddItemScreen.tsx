@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { FigmaIcon } from '../../components/icons/FigmaIcon';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { Button } from '../../components/Button';
@@ -14,6 +13,7 @@ import { useUnsavedChangesWarning } from '../../utils/useUnsavedChangesWarning';
 import { checkPhotoBlur } from '../../utils/blurCheck';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
+import { AppIcon } from '../../components/icons/AppIcons';
 
 const FALLBACK_CATEGORIES = ['top', 'bottom', 'dress', 'shoes', 'bag', 'accessory', 'outerwear'];
 const FALLBACK_COLORS = ['black', 'white', 'red', 'blue', 'green', 'pink', 'beige', 'navy'];
@@ -312,7 +312,7 @@ export default function AddItemScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.doneWrap}>
-          <Ionicons name="checkmark-circle" size={56} color={colors.success ?? '#3B8352'} />
+          <AppIcon name="checkmarkCircle" size={56} color={colors.success ?? '#3B8352'} />
           <Text style={[type.h2, { marginTop: spacing.md }]}>Successfully added</Text>
           <Text style={[type.muted, { textAlign: 'center', marginTop: 4 }]}>
             {bgMessage()}
@@ -380,7 +380,7 @@ export default function AddItemScreen() {
             <Text style={styles.photoButtonText}>Album</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.photoButton} onPress={pickFromClipboard} activeOpacity={0.85}>
-            <Ionicons name="clipboard-outline" size={20} color={colors.ink} style={{ marginBottom: 2 }} />
+            <AppIcon name="clipboard" size={20} color={colors.ink} />
             <Text style={styles.photoButtonText}>Paste</Text>
           </TouchableOpacity>
         </View>
@@ -390,7 +390,7 @@ export default function AddItemScreen() {
             <ActivityIndicator color={colors.white} />
           ) : (
             <>
-              <Ionicons name="pricetag-outline" size={16} color={colors.white} />
+              <AppIcon name="tag" size={16} color={colors.white} />
               <Text style={styles.scanButtonText}>Scan tag — auto-fill brand, size & material</Text>
             </>
           )}

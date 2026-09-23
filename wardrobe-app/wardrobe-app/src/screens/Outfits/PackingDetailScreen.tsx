@@ -9,7 +9,6 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, FlatList, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { Button } from '../../components/Button';
@@ -17,6 +16,7 @@ import { ItemThumb } from '../../components/ItemThumb';
 import { getPacking, deletePacking, updatePacking, uploadPackingCoverImage, getItemsByIds } from '../../api/wardrobeApi';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
+import { AppIcon } from '../../components/icons/AppIcons';
 
 export default function PackingDetailScreen() {
   const route = useRoute<any>();
@@ -108,7 +108,7 @@ export default function PackingDetailScreen() {
           <TouchableOpacity style={styles.coverBox} onPress={pickCover} activeOpacity={0.85}>
             {editForm.coverUri ? <Image source={{ uri: editForm.coverUri }} style={styles.coverImage} />
               : packing.coverImageUrl ? <Image source={{ uri: packing.coverImageUrl }} style={styles.coverImage} />
-              : <View style={{ alignItems: 'center' }}><Ionicons name="image-outline" size={26} color={colors.inkMuted} /><Text style={{ color: colors.inkMuted, marginTop: 4 }}>Change cover image</Text></View>}
+              : <View style={{ alignItems: 'center' }}><AppIcon name="image" size={26} color={colors.inkMuted} /><Text style={{ color: colors.inkMuted, marginTop: 4 }}>Change cover image</Text></View>}
           </TouchableOpacity>
 
           <Text style={styles.formLabel}>Trip name</Text>
@@ -141,15 +141,15 @@ export default function PackingDetailScreen() {
           {packing.coverImageUrl ? (
             <Image source={{ uri: packing.coverImageUrl }} style={styles.cover} />
           ) : (
-            <View style={[styles.cover, styles.coverPlaceholder]}><Ionicons name="briefcase-outline" size={32} color={colors.inkMuted} /></View>
+            <View style={[styles.cover, styles.coverPlaceholder]}><AppIcon name="briefcase" size={32} color={colors.inkMuted} /></View>
           )}
         </TouchableOpacity>
 
         {packing.destination ? (
-          <View style={styles.metaRow}><Ionicons name="location-outline" size={13} color={colors.inkMuted} /><Text style={styles.meta}> {packing.destination}</Text></View>
+          <View style={styles.metaRow}><AppIcon name="location" size={13} color={colors.inkMuted} /><Text style={styles.meta}> {packing.destination}</Text></View>
         ) : null}
         {(packing.startDate || packing.endDate) && (
-          <View style={styles.metaRow}><Ionicons name="calendar-outline" size={13} color={colors.inkMuted} /><Text style={styles.meta}> {packing.startDate ?? '?'} → {packing.endDate ?? '?'}</Text></View>
+          <View style={styles.metaRow}><AppIcon name="calendar" size={13} color={colors.inkMuted} /><Text style={styles.meta}> {packing.startDate ?? '?'} → {packing.endDate ?? '?'}</Text></View>
         )}
 
         <Text style={[type.h3, { marginTop: spacing.md, marginBottom: spacing.sm }]}>

@@ -23,6 +23,7 @@ import { useUnsavedChangesWarning } from '../../utils/useUnsavedChangesWarning';
 import * as ImagePicker from 'expo-image-picker';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
+import { AppIcon } from '../../components/icons/AppIcons';
 
 const FALLBACK_CATEGORIES = ['top', 'bottom', 'dress', 'shoes', 'bag', 'accessory', 'outerwear'];
 const FALLBACK_COLORS = ['black', 'white', 'red', 'blue', 'green', 'pink', 'beige', 'navy'];
@@ -178,15 +179,15 @@ export default function ItemDetailsScreen() {
   const costPerWear = item.price && item.wearCount > 0 ? (item.price / item.wearCount) : null;
 
   const rows = [
-    { icon: 'pricetag-outline' as const, label: 'Brand', value: item.brand },
-    { icon: 'cash-outline' as const, label: 'Price', value: item.price ? `₹${item.price}` : null },
-    { icon: 'resize-outline' as const, label: 'Size', value: item.size },
-    { icon: 'shirt-outline' as const, label: 'Material', value: item.material },
-    { icon: 'color-palette-outline' as const, label: 'Style', value: item.style },
-    { icon: 'partly-sunny-outline' as const, label: 'Season', value: item.season },
-    { icon: 'repeat-outline' as const, label: 'Worn', value: `${item.wearCount}×` },
-    { icon: 'trending-down-outline' as const, label: 'Cost per wear', value: costPerWear != null ? `₹${costPerWear.toFixed(0)}` : (item.price ? 'Wear it to find out' : null) },
-    { icon: 'sparkles-outline' as const, label: 'Status', value: item.backgroundRemoval?.status },
+    { icon: 'tag' as const, label: 'Brand', value: item.brand },
+    { icon: 'cash' as const, label: 'Price', value: item.price ? `₹${item.price}` : null },
+    { icon: 'resize' as const, label: 'Size', value: item.size },
+    { icon: 'shirt' as const, label: 'Material', value: item.material },
+    { icon: 'colorPalette' as const, label: 'Style', value: item.style },
+    { icon: 'partlySunny' as const, label: 'Season', value: item.season },
+    { icon: 'repeat' as const, label: 'Worn', value: `${item.wearCount}×` },
+    { icon: 'trendingDown' as const, label: 'Cost per wear', value: costPerWear != null ? `₹${costPerWear.toFixed(0)}` : (item.price ? 'Wear it to find out' : null) },
+    { icon: 'sparkles' as const, label: 'Status', value: item.backgroundRemoval?.status },
   ];
 
   return (
@@ -211,7 +212,7 @@ export default function ItemDetailsScreen() {
         {rows.map((row) => (
           <View key={row.label} style={styles.row}>
             <View style={styles.rowLabelWrap}>
-              <Ionicons name={row.icon} size={15} color={colors.inkMuted} />
+              <AppIcon name={row.icon} size={15} color={colors.inkMuted} />
               <Text style={type.muted}>{row.label}</Text>
             </View>
             <Text style={[type.body, { fontWeight: '600', textTransform: 'capitalize' }]}>{row.value ?? '—'}</Text>

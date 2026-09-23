@@ -2,7 +2,6 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { FigmaIcon } from '../../components/icons/FigmaIcon';
 import { getWardrobeItems, setItemFavorite, getClosetOverview, getAttributeSuggestions } from '../../api/wardrobeApi';
 import { ItemThumb } from '../../components/ItemThumb';
@@ -12,6 +11,7 @@ import { FilterPanel, FilterValues } from '../../components/FilterPanel';
 import { PageHeader } from '../../components/PageHeader';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
+import { AppIcon } from '../../components/icons/AppIcons';
 
 // Tabs are now driven by whatever categories actually exist in THIS
 // user's closet (via closet/overview's itemsByCategory breakdown),
@@ -111,10 +111,10 @@ export default function ClosetScreen() {
             {activeFilterCount > 0 && <View style={styles.filterBadge}><Text style={styles.filterBadgeText}>{activeFilterCount}</Text></View>}
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('ReorderItems')}>
-            <Ionicons name="swap-vertical-outline" size={16} color={colors.ink} />
+            <AppIcon name="swapVertical" size={16} color={colors.ink} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Archive')}>
-            <Ionicons name="file-tray-full-outline" size={16} color={colors.ink} />
+            <AppIcon name="fileTray" size={16} color={colors.ink} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Favorites')}>
             <FigmaIcon name="heartOutline" size={16} color={colors.ink} />
@@ -126,7 +126,7 @@ export default function ClosetScreen() {
       </View>
 
       <View style={styles.searchBar}>
-        <Ionicons name="search-outline" size={16} color={colors.inkMuted} style={{ marginRight: 6 }} />
+        <AppIcon name="search" size={16} color={colors.inkMuted} />
         <TextInput
           style={styles.searchInput}
           value={searchText}
@@ -199,8 +199,8 @@ export default function ClosetScreen() {
           surfaces both without adding a new screen. */}
       <FabMenu
         actions={[
-          { label: 'Add items', icon: 'shirt-outline', onPress: () => navigation.navigate('AddItem') },
-          { label: 'Bulk upload', icon: 'images-outline', onPress: () => navigation.navigate('BulkUpload') },
+          { label: 'Add items', icon: 'shirt', onPress: () => navigation.navigate('AddItem') },
+          { label: 'Bulk upload', icon: 'image', onPress: () => navigation.navigate('BulkUpload') },
         ]}
       />
 

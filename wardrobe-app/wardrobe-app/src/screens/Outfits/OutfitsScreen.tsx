@@ -2,7 +2,6 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Share, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { FigmaIcon } from '../../components/icons/FigmaIcon';
 import { listOutfits, getOutfitCategories, getItemsByIds, deleteOutfit, updateOutfit, listPackings, getAttributeSuggestions, setOutfitFavorite } from '../../api/wardrobeApi';
 import { collageLayout } from '../../utils/outfitCollage';
@@ -12,6 +11,7 @@ import { FilterPanel, FilterValues } from '../../components/FilterPanel';
 import { PageHeader } from '../../components/PageHeader';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
+import { AppIcon } from '../../components/icons/AppIcons';
 
 const SEASONS = ['summer', 'autumn', 'winter', 'monsoon', 'spring', 'all_season'];
 
@@ -174,7 +174,7 @@ export default function OutfitsScreen() {
             {activeFilterCount > 0 && <Text style={styles.filterButtonText}> {activeFilterCount}</Text>}
           </TouchableOpacity>
           <TouchableOpacity style={styles.packButton} onPress={() => navigation.navigate('StartPacking')}>
-            <Ionicons name="briefcase-outline" size={12} color={colors.ink} />
+            <AppIcon name="briefcase" size={12} color={colors.ink} />
             <Text style={styles.packButtonText}> Start packing</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('CreateOutfit')}>
@@ -235,7 +235,7 @@ export default function OutfitsScreen() {
                   {p.coverImageUrl ? (
                     <View style={styles.packingCoverWrap}><ItemThumb item={{ imageUrl: p.coverImageUrl, category: 'trip', color: '' }} size={116} /></View>
                   ) : (
-                    <View style={[styles.packingCoverWrap, styles.packingCoverPlaceholder]}><Ionicons name="briefcase-outline" size={28} color={colors.inkMuted} /></View>
+                    <View style={[styles.packingCoverWrap, styles.packingCoverPlaceholder]}><AppIcon name="briefcase" size={28} color={colors.inkMuted} /></View>
                   )}
                   <Text style={styles.packingCardName} numberOfLines={1}>{p.name ?? 'Untitled trip'}</Text>
                   {(p.startDate || p.endDate) && <Text style={styles.packingCardDates}>{p.startDate ?? '?'} - {p.endDate ?? '?'}</Text>}
@@ -274,7 +274,7 @@ export default function OutfitsScreen() {
                 onPress={() => handleShare(item)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Ionicons name="share-outline" size={13} color={colors.white} />
+                <AppIcon name="share" size={13} color={colors.white} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.favButton}
@@ -346,7 +346,7 @@ export default function OutfitsScreen() {
               </View>
               {item.aesthetic ? (
                 <View style={styles.aestheticBadge}>
-                  <Ionicons name="sparkles" size={9} color={colors.ink} />
+                  <AppIcon name="sparkles" size={9} color={colors.ink} />
                   <Text style={styles.aestheticBadgeText}> {item.aesthetic.replace(/_/g, ' ')}</Text>
                 </View>
               ) : null}

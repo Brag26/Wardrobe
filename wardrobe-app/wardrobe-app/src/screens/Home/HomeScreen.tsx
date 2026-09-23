@@ -2,7 +2,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, FlatList, Switch, Animated, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getClosetOverview, getWardrobeItems, listOutfits, setItemFavorite, setOutfitFavorite as apiSetOutfitFavorite, getItemsByIds, getTodayOutfit } from '../../api/wardrobeApi';
 import { useAuthStore } from '../../store/authStore';
@@ -13,6 +12,7 @@ import { CalendarIcon, ProfileIcon, ChatIcon, ClothesIcon, HangerIcon, HeartIcon
 import { CreateOutfitIllustration, BuildWardrobeIllustration } from '../../components/illustrations/EmptyStateIllustrations';
 import { spacing, radius, cardShadow, COLOR_SWATCHES } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
+import { AppIcon, AppIconName } from '../../components/icons/AppIcons';
 
 const OUTFIT_TABS = ['All', 'Casual', 'Formal', 'Business', 'Evening Wear'];
 const FALLBACK_ITEM_TABS = ['All', 'Top', 'Bottom', 'Dress', 'Shoes'];
@@ -84,11 +84,11 @@ export default function HomeScreen() {
     setFabOpen((v) => !v);
   };
 
-  const fabActions = [
-    { label: 'Add items', icon: 'shirt-outline' as const, onPress: () => navigation.navigate('ClosetTab', { screen: 'AddItem' }) },
-    { label: 'Add outfit', icon: 'sparkles-outline' as const, onPress: () => navigation.navigate('OutfitsTab', { screen: 'CreateOutfit' }) },
-    { label: 'Schedule outfit', icon: 'calendar-outline' as const, onPress: () => navigation.navigate('JournalTab') },
-    { label: 'Plan trip outfits', icon: 'briefcase-outline' as const, onPress: () => navigation.navigate('OutfitsTab', { screen: 'StartPacking' }) },
+  const fabActions: { label: string; icon: AppIconName; onPress: () => void }[] = [
+    { label: 'Add items', icon: 'shirt', onPress: () => navigation.navigate('ClosetTab', { screen: 'AddItem' }) },
+    { label: 'Add outfit', icon: 'sparkles', onPress: () => navigation.navigate('OutfitsTab', { screen: 'CreateOutfit' }) },
+    { label: 'Schedule outfit', icon: 'calendar', onPress: () => navigation.navigate('JournalTab') },
+    { label: 'Plan trip outfits', icon: 'briefcase', onPress: () => navigation.navigate('OutfitsTab', { screen: 'StartPacking' }) },
   ];
 
   // Previously this swallowed errors completely (`catch {}`) — the
@@ -425,7 +425,7 @@ export default function HomeScreen() {
                   <Image source={{ uri: cover.imageUrl }} style={styles.categoryCardImage} />
                 ) : (
                   <View style={[styles.categoryCardImage, styles.categoryCardImageFallback]}>
-                    <Ionicons name="pricetag-outline" size={22} color={colors.inkMuted} />
+                    <AppIcon name="tag" size={22} color={colors.inkMuted} />
                   </View>
                 )}
                 <LinearGradient
@@ -490,7 +490,7 @@ export default function HomeScreen() {
                 style={styles.fabActionButton}
                 onPress={() => { toggleFab(); action.onPress(); }}
               >
-                <Ionicons name={action.icon} size={17} color={colors.ink} />
+                <AppIcon name={action.icon} size={17} color={colors.ink} />
               </TouchableOpacity>
             </Animated.View>
           );

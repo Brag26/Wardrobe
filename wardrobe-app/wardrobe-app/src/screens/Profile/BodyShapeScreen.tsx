@@ -5,11 +5,11 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { getProfile, setBodyShape } from '../../api/wardrobeApi';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
+import { AppIcon } from '../../components/icons/AppIcons';
 
 const SHAPES = [
   { key: 'hourglass', label: 'Hourglass', emoji: '⏳', desc: 'Bust and hips are balanced, waist is defined' },
@@ -60,7 +60,7 @@ export default function BodyShapeScreen() {
             <Text style={styles.cardLabel}>{s.label}</Text>
             <Text style={styles.cardDesc}>{s.desc}</Text>
           </View>
-          {selected === s.key && <Ionicons name="checkmark-circle" size={22} color={colors.success} />}
+          {selected === s.key && <AppIcon name="checkmarkCircle" size={22} color={colors.success} />}
         </TouchableOpacity>
       ))}
     </SafeAreaView>

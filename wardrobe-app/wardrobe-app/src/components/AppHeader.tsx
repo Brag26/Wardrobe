@@ -9,17 +9,17 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { spacing, radius, cardShadow } from '../theme/theme';
 import { useAppTheme } from '../theme/ThemeContext';
 import { SuperBaeLogo, BellIcon, MenuIcon } from './icons/SuperBaeIcons';
+import { AppIcon, AppIconName } from './icons/AppIcons';
 
-const MENU_ITEMS = [
-  { label: 'Fits', icon: 'home-outline', tab: 'HomeTab' },
-  { label: 'Ara', icon: 'sparkles-outline', tab: 'AraTab' },
-  { label: 'Closet', icon: 'shirt-outline', tab: 'ClosetTab' },
-  { label: 'Outfits', icon: 'albums-outline', tab: 'OutfitsTab' },
-  { label: 'Chat', icon: 'chatbubble-outline', tab: 'ChatTab' },
+const MENU_ITEMS: { label: string; icon: AppIconName; tab: string }[] = [
+  { label: 'Fits', icon: 'home', tab: 'HomeTab' },
+  { label: 'Ara', icon: 'sparkles', tab: 'AraTab' },
+  { label: 'Closet', icon: 'shirt', tab: 'ClosetTab' },
+  { label: 'Outfits', icon: 'albums', tab: 'OutfitsTab' },
+  { label: 'Chat', icon: 'chatBubble', tab: 'ChatTab' },
 ];
 
 export function AppHeader({ hasNotifications = false }: { hasNotifications?: boolean }) {
@@ -51,7 +51,7 @@ export function AppHeader({ hasNotifications = false }: { hasNotifications?: boo
                 style={styles.menuItem}
                 onPress={() => { setMenuOpen(false); navigation.navigate(item.tab); }}
               >
-                <Ionicons name={item.icon as any} size={18} color={colors.ink} />
+                <AppIcon name={item.icon} size={18} color={colors.ink} />
                 <Text style={styles.menuItemText}>{item.label}</Text>
               </TouchableOpacity>
             ))}

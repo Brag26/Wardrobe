@@ -7,14 +7,14 @@
 // icon row) don't need this at all.
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, StyleSheet as RNStyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { AppIcon, AppIconName } from './icons/AppIcons';
 import { spacing, radius } from '../theme/theme';
 import { useAppTheme } from '../theme/ThemeContext';
 import { FabButton } from './icons/SuperBaeIcons';
 
 export interface FabMenuAction {
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: AppIconName;
   onPress: () => void;
 }
 
@@ -47,7 +47,7 @@ export function FabMenu({ actions }: { actions: FabMenuAction[] }) {
             >
               <Text style={styles.actionLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{action.label}</Text>
               <TouchableOpacity style={styles.actionButton} onPress={() => { toggle(); action.onPress(); }}>
-                <Ionicons name={action.icon} size={17} color={colors.ink} />
+                <AppIcon name={action.icon} size={17} color={colors.ink} />
               </TouchableOpacity>
             </Animated.View>
           );
