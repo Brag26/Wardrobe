@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, radius, cardShadow } from '../theme/theme';
 import { useAppTheme } from '../theme/ThemeContext';
+import { SuperBaeLogo, BellIcon, MenuIcon } from './icons/SuperBaeIcons';
 
 const MENU_ITEMS = [
   { label: 'Fits', icon: 'home-outline', tab: 'HomeTab' },
@@ -29,13 +30,15 @@ export function AppHeader() {
 
   return (
     <View style={styles.row}>
-      <Text style={styles.logo}>Super<Text style={styles.logoAccent}>Bae</Text></Text>
+      <View style={styles.logoWrap}>
+        <SuperBaeLogo />
+      </View>
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.iconButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="notifications-outline" size={20} color={colors.ink} />
+        <TouchableOpacity style={styles.iconButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Notifications">
+          <BellIcon />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.iconButton} onPress={() => setMenuOpen(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="menu-outline" size={22} color={colors.ink} />
+        <TouchableOpacity style={styles.iconButton} onPress={() => setMenuOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Menu">
+          <MenuIcon />
         </TouchableOpacity>
       </View>
 
@@ -61,17 +64,15 @@ export function AppHeader() {
 
 function makeStyles(colors: any, type: any) {
   return StyleSheet.create({
+    // Figma top nav: 64px tall white bar. Logo starts 30px from the left;
+    // bell box at x=326, menu box at x=384 (both 24x24), 32px from the right.
     row: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xs,
+      height: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingLeft: 30, paddingRight: 32, backgroundColor: '#FFFFFF',
     },
-    logo: { fontSize: 20, fontWeight: '700' as const, fontFamily: 'DMSans_700Bold', color: colors.ink, letterSpacing: -0.3 },
-    logoAccent: { color: colors.lavenderDeep },
-    actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    iconButton: {
-      width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
-      backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border,
-    },
+    logoWrap: { marginTop: 2 }, // logo sits ~1px below the row's centre line in the design
+    actions: { flexDirection: 'row', alignItems: 'center', gap: 34 },
+    iconButton: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
     menuBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'flex-end' },
     menuSheet: {
       marginTop: 60, marginRight: spacing.lg, backgroundColor: colors.card, borderRadius: radius.md,

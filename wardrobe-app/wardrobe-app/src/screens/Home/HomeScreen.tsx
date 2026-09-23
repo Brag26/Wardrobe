@@ -4,12 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FigmaIcon } from '../../components/icons/FigmaIcon';
 import { getClosetOverview, getWardrobeItems, listOutfits, setItemFavorite, getItemsByIds, getTodayOutfit } from '../../api/wardrobeApi';
 import { useAuthStore } from '../../store/authStore';
 import { ItemThumb } from '../../components/ItemThumb';
 import { AppHeader } from '../../components/AppHeader';
 import { AraMascot } from '../../components/AraMascot';
+import { CalendarIcon, ProfileIcon, ChatIcon, ClothesIcon, HangerIcon, HeartIcon, CategoryIcon, FabButton } from '../../components/icons/SuperBaeIcons';
 import { CreateOutfitIllustration, BuildWardrobeIllustration } from '../../components/illustrations/EmptyStateIllustrations';
 import { spacing, radius, cardShadow, COLOR_SWATCHES } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
@@ -167,28 +167,13 @@ export default function HomeScreen() {
   // but the section only renders when it's non-empty.
   const uncategorizedItems = items.filter((i) => !i.category);
 
-  const isEmptyCloset = overview && overview.totalItems === 0;
-
-  if (isEmptyCloset) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.emptyWrap}>
-          <Text style={{ fontSize: 64 }}>👗</Text>
-          <Text style={[type.h1, { marginTop: spacing.md, textAlign: 'center' }]}>Build your closet</Text>
-          <Text style={[type.muted, { textAlign: 'center', marginTop: spacing.xs, paddingHorizontal: spacing.lg }]}>
-            Upload the clothes you love and create your personal wardrobe — Ara does the rest.
-          </Text>
-          <View style={{ height: spacing.lg }} />
-          <TouchableOpacity style={styles.emptyCta} onPress={() => navigation.navigate('ClosetTab', { screen: 'AddItem' })}>
-            <Text style={styles.emptyCtaText}>+ Add items</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  // No full-screen "Build your closet" gate here any more: an empty closet
+  // still shows the normal Fits screen, with the My Outfits / My Items
+  // empty-state cards (illustration + Create outfit / Add Item buttons)
+  // so adding items stays optional.
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {homeLoading && homeLoadElapsed > 4 && (
         <View style={styles.coldStartBanner}>
           <Text style={styles.coldStartBannerText}>
@@ -206,11 +191,14 @@ export default function HomeScreen() {
         <View style={styles.topRow}>
           <Text style={styles.greeting}>Good morning</Text>
           <View style={styles.darkModeRow}>
-            <TouchableOpacity style={styles.profileButton} onPress={() => navigation.navigate('CalendarStack')}>
-              <Ionicons name="calendar-outline" size={16} color={colors.ink} />
+            <TouchableOpacity style={styles.profileButton} onPress={() => navigation.navigate('CalendarStack')} accessibilityLabel="Outfit calendar">
+              <CalendarIcon />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.profileButton} onPress={() => navigation.navigate('Profile', { screen: 'StyleProfileHub' })}>
-              <Ionicons name="person-outline" size={16} color={colors.ink} />
+            <TouchableOpacity style={styles.profileButton} onPress={() => navigation.navigate('ChatTab')} accessibilityLabel="Chat with Ara">
+              <ChatIcon />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.profileButton} onPress={() => navigation.navigate('Profile', { screen: 'StyleProfileHub' })} accessibilityLabel="Style profile">
+              <ProfileIcon />
             </TouchableOpacity>
           </View>
         </View>
@@ -272,22 +260,22 @@ export default function HomeScreen() {
         <Text style={styles.sectionTitle}>Your Closet Overview</Text>
         <View style={styles.statRow}>
           <View style={styles.statCard}>
-            <Ionicons name="shirt-outline" size={20} color={colors.ink} />
+            <ClothesIcon />
             <Text style={styles.statNum}>{overview?.totalItems ?? '–'}</Text>
             <Text style={styles.statLabel} numberOfLines={1}>Items</Text>
           </View>
           <View style={styles.statCard}>
-            <Ionicons name="sparkles-outline" size={20} color={colors.ink} />
+            <HangerIcon />
             <Text style={styles.statNum}>{overview?.totalOutfits ?? '–'}</Text>
             <Text style={styles.statLabel} numberOfLines={1}>Outfits</Text>
           </View>
           <View style={styles.statCard}>
-            <FigmaIcon name="heartOutline" size={20} color={colors.ink} />
+            <HeartIcon />
             <Text style={styles.statNum}>{overview?.totalFavorites ?? '–'}</Text>
             <Text style={styles.statLabel} numberOfLines={1}>Favorites</Text>
           </View>
           <View style={styles.statCard}>
-            <Ionicons name="pricetag-outline" size={20} color={colors.ink} />
+            <CategoryIcon />
             <Text style={styles.statNum}>{categoryCount ?? '–'}</Text>
             <Text style={styles.statLabel} numberOfLines={1}>Categories</Text>
           </View>
@@ -477,7 +465,7 @@ export default function HomeScreen() {
       )}
       <View style={styles.fabWrap} pointerEvents="box-none">
         {fabActions.map((action, idx) => {
-          const translateY = fabAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -(56 * (idx + 1))] });
+          const translateY = fabAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -(24 + 56 * (idx + 1))] });
           const opacity = fabAnim;
           return (
             <Animated.View key={action.label} style={[styles.fabAction, { transform: [{ translateY }], opacity }]} pointerEvents={fabOpen ? 'auto' : 'none'}>
@@ -496,9 +484,8 @@ export default function HomeScreen() {
             shadow reads as an actual glow, matching the reference; a
             single shadow on the button itself stays looking like a
             normal drop shadow no matter how far the radius is pushed. */}
-        <View style={styles.fabGlow} pointerEvents="none" />
-        <TouchableOpacity style={styles.fabMain} onPress={toggleFab} activeOpacity={0.85}>
-          <Animated.Text style={[styles.fabMainIcon, { transform: [{ rotate: fabAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] }) }] }]}>+</Animated.Text>
+        <TouchableOpacity onPress={toggleFab} activeOpacity={0.85} accessibilityLabel={fabOpen ? 'Close quick actions' : 'Open quick actions'}>
+          <FabButton />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -524,7 +511,7 @@ function makeStyles(colors: any, type: any) {
     topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
     greeting: { ...type.h1 },
     darkModeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    profileButton: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
+    profileButton: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginLeft: 2 },
     menuBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'flex-end' },
     menuSheet: {
       marginTop: 60, marginRight: spacing.lg, backgroundColor: colors.card, borderRadius: radius.md,
@@ -605,9 +592,6 @@ function makeStyles(colors: any, type: any) {
     itemHeart: { position: 'absolute', top: 4, right: 4 },
     itemLabel: { fontSize: 11, color: colors.inkMuted, marginTop: 4, textTransform: 'capitalize', textAlign: 'center' },
     empty: { ...type.muted, padding: spacing.md },
-    emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-    emptyCta: { backgroundColor: colors.black, borderRadius: radius.pill, paddingVertical: 14, paddingHorizontal: spacing.xl },
-    emptyCtaText: { color: colors.white, fontWeight: '700', fontSize: 14 },
     categoryCard: {
       width: 112, height: 140, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.bgSoft,
     },
@@ -620,25 +604,11 @@ function makeStyles(colors: any, type: any) {
     signOutLink: { alignSelf: 'center', marginTop: spacing.xl },
     signOutText: { fontSize: 11, color: colors.inkMuted, textDecorationLine: 'underline' },
     fabBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.25)' },
-    fabWrap: { position: 'absolute', bottom: spacing.lg, right: spacing.lg, alignItems: 'flex-end' },
-    // Anchored to the wrap's own bottom-right (where fabMain always
-    // sits, open or closed, since it's the last item in the column) —
-    // larger than the button and centered behind it, with a soft,
-    // low-opacity shadow that reads as an actual glow rather than a
-    // slightly bigger drop shadow.
-    fabGlow: {
-      position: 'absolute', bottom: -10, right: -10, width: 76, height: 76, borderRadius: 38,
-      backgroundColor: colors.black, opacity: 0.35,
-      shadowColor: colors.black, shadowOpacity: 0.5, shadowRadius: 18, shadowOffset: { width: 0, height: 0 }, elevation: 8,
-    },
-    fabMain: {
-      width: 56, height: 56, borderRadius: 28, backgroundColor: colors.black,
-      alignItems: 'center', justifyContent: 'center', elevation: 4,
-      shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
-    },
-    fabMainIcon: { color: colors.white, fontSize: 26, fontWeight: '400', lineHeight: 28 },
+    // Figma: 70px circle, 20px from the right edge, 30px above the bottom nav
+    // (the SVG has a 75x75 box around the 70px circle).
+    fabWrap: { position: 'absolute', bottom: 30, right: 19.5, alignItems: 'flex-end' },
     fabAction: {
-      position: 'absolute', bottom: 0, right: 0, flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+      position: 'absolute', bottom: 15.5, right: 15.5, flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
     },
     fabActionLabel: {
       backgroundColor: colors.card ?? colors.bgSoft, color: colors.ink, fontSize: 12, fontWeight: '600',
