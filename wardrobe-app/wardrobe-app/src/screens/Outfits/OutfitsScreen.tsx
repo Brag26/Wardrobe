@@ -4,11 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { FigmaIcon } from '../../components/icons/FigmaIcon';
-import { listOutfits, getOutfitCategories, getItemsByIds, deleteOutfit, updateOutfit, listPackings, getAttributeSuggestions } from '../../api/wardrobeApi';
+import { listOutfits, getOutfitCategories, getItemsByIds, deleteOutfit, updateOutfit, listPackings, getAttributeSuggestions, setOutfitFavorite } from '../../api/wardrobeApi';
 import { collageLayout } from '../../utils/outfitCollage';
+import { CreateOutfitIllustration } from '../../components/illustrations/EmptyStateIllustrations';
 import { ItemThumb } from '../../components/ItemThumb';
 import { FilterPanel, FilterValues } from '../../components/FilterPanel';
-import { AppHeader } from '../../components/AppHeader';
+import { PageHeader } from '../../components/PageHeader';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
 
@@ -165,10 +166,9 @@ export default function OutfitsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <AppHeader />
+      <PageHeader title="My Outfits" />
       <View style={styles.header}>
-        <Text style={styles.title}>My Outfits</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: spacing.xs, flexShrink: 1 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: spacing.xs, flexShrink: 1, marginLeft: 'auto' }}>
           <TouchableOpacity style={styles.filterButton} onPress={() => setFilterPanelOpen(true)}>
             <FigmaIcon name="filter" size={13} color={colors.ink} />
             {activeFilterCount > 0 && <Text style={styles.filterButtonText}> {activeFilterCount}</Text>}
@@ -212,7 +212,10 @@ export default function OutfitsScreen() {
               <ActivityIndicator color={colors.inkMuted} />
             </View>
           ) : (
-            <Text style={styles.empty}>No outfits in this category yet.</Text>
+            <View style={styles.emptyState}>
+              <View style={styles.emptyStateImage}><CreateOutfitIllustration /></View>
+              <Text style={styles.empty}>No outfits in this category yet.</Text>
+            </View>
           )
         }
         ListHeaderComponent={packings.length > 0 ? (
@@ -272,6 +275,13 @@ export default function OutfitsScreen() {
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Ionicons name="share-outline" size={13} color={colors.white} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.favButton}
+                onPress={() => { setOutfitFavorite(item.id, !item.isFavorite); setOutfits((prev) => prev.map((o) => (o.id === item.id ? { ...o, isFavorite: !item.isFavorite } : o))); }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <FigmaIcon name={item.isFavorite ? 'heart' : 'heartOutline'} size={13} color={item.isFavorite ? '#FF5C7A' : colors.white} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.deleteButton}
@@ -434,9 +444,13 @@ function makeStyles(colors: any, type: any) {
     position: 'absolute', top: 6, right: 6, zIndex: 2, width: 26, height: 26, borderRadius: 13,
     backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
   },
+  favButton: {
+    position: 'absolute', top: 6, right: 38, zIndex: 2, width: 26, height: 26, borderRadius: 13,
+    backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
+  },
   deleteButtonText: { color: colors.white, fontSize: 13, fontWeight: '700', lineHeight: 14 },
   newBadge: {
-    position: 'absolute', top: 6, right: 40, zIndex: 3, backgroundColor: colors.lavenderDeep ?? '#7C6BAF',
+    position: 'absolute', top: 6, left: 38, zIndex: 3, backgroundColor: colors.lavenderDeep ?? '#7C6BAF',
     borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 3,
   },
   newBadgeText: { color: colors.white, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
@@ -458,7 +472,9 @@ function makeStyles(colors: any, type: any) {
   outfitBrand: { ...type.muted, alignSelf: 'flex-start', marginTop: 2 },
   aestheticBadge: { backgroundColor: colors.lavender, borderRadius: radius.pill, paddingVertical: 2, paddingHorizontal: 8, alignSelf: 'flex-start', marginTop: 4, flexDirection: 'row', alignItems: 'center' },
   aestheticBadgeText: { fontSize: 10, fontWeight: '700', color: colors.ink, textTransform: 'capitalize' },
-  empty: { ...type.muted, textAlign: 'center', marginTop: spacing.xxl, paddingHorizontal: spacing.lg },
+  empty: { ...type.muted, textAlign: 'center', paddingHorizontal: spacing.lg },
+  emptyState: { alignItems: 'center', marginTop: spacing.xl },
+  emptyStateImage: { height: 140, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
   modalCard: { width: '100%', maxWidth: 360, backgroundColor: colors.card, borderRadius: radius.lg, padding: spacing.lg },
   modalTitle: { ...type.h3, marginBottom: spacing.sm },

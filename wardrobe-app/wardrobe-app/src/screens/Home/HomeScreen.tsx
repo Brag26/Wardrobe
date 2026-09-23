@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getClosetOverview, getWardrobeItems, listOutfits, setItemFavorite, getItemsByIds, getTodayOutfit } from '../../api/wardrobeApi';
+import { getClosetOverview, getWardrobeItems, listOutfits, setItemFavorite, setOutfitFavorite as apiSetOutfitFavorite, getItemsByIds, getTodayOutfit } from '../../api/wardrobeApi';
 import { useAuthStore } from '../../store/authStore';
 import { ItemThumb } from '../../components/ItemThumb';
 import { AppHeader } from '../../components/AppHeader';
@@ -257,7 +257,7 @@ export default function HomeScreen() {
           )}
         </TouchableOpacity>
 
-        <Text style={styles.sectionTitle}>Your Closet Overview</Text>
+        <Text style={[styles.sectionTitle, styles.sectionTitleLoose]}>Your Closet Overview</Text>
         <View style={styles.statRow}>
           <TouchableOpacity style={styles.statCard} onPress={() => navigation.navigate('ClosetTab', { screen: 'ClosetHome' })} activeOpacity={0.7}>
             <ClothesIcon />
@@ -281,114 +281,130 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>My Outfits</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('OutfitsTab')}>
-            <Text style={styles.viewAll}>View all</Text>
-          </TouchableOpacity>
-        </View>
-        <FlatList
-          horizontal
-          data={OUTFIT_TABS}
-          keyExtractor={(t) => t}
-          showsHorizontalScrollIndicator={false}
-          style={styles.tabList}
-          contentContainerStyle={styles.tabRow}
-          renderItem={({ item: t }) => (
-            <TouchableOpacity onPress={() => setOutfitTab(t)} style={[styles.tab, outfitTab === t && styles.tabActive]}>
-              <Text style={[styles.tabText, outfitTab === t && styles.tabTextActive]}>{t}</Text>
-            </TouchableOpacity>
-          )}
-        />
-        {outfits.length === 0 ? (
-          // Real illustrated empty state (client-provided asset), not
-          // just a plain "No outfits yet" line — previously this
-          // section gave a first-time user almost nothing to look at.
-          <View style={styles.emptyStateCard}>
-            <View style={styles.emptyStateImage}><CreateOutfitIllustration /></View>
-            <Text style={styles.emptyStateTitle}>Create your first look</Text>
-            <Text style={styles.emptyStateBody}>Put together outfits you love and save them for whenever you need a little style inspiration.</Text>
-            <TouchableOpacity style={styles.emptyStateButton} onPress={() => navigation.navigate('OutfitsTab', { screen: 'CreateOutfit' })}>
-              <Text style={styles.emptyStateButtonText}>Create outfit</Text>
+        {/* Heading, category chips and content all live inside one
+            card now — matches the original reference, where "My
+            Outfits" wasn't a bare heading floating on the page but
+            part of the same picture/card as its content. */}
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeaderInCard}>
+            <Text style={styles.sectionTitle}>My Outfits</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('OutfitsTab')}>
+              <Text style={styles.viewAll}>View all</Text>
             </TouchableOpacity>
           </View>
-        ) : (
           <FlatList
             horizontal
-            data={outfits}
-            keyExtractor={(o) => o.id}
+            data={OUTFIT_TABS}
+            keyExtractor={(t) => t}
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.outfitCard} onPress={() => navigation.navigate('OutfitsTab')}>
-                <View style={styles.outfitThumbRow}>
-                  <ItemThumb item={item.itemIds?.[0] ? outfitPreviews[item.itemIds[0]] ?? null : null} size={80} noBorder />
-                </View>
-                <Text style={styles.outfitName} numberOfLines={1}>{item.name ?? 'Outfit'}</Text>
-                <View style={styles.outfitMetaRow}>
-                  <Text style={styles.outfitMeta}>{item.brand ?? `${item.itemIds?.length ?? 0} pieces`}</Text>
-                  {item.rating != null && <Text style={styles.outfitRating}>★ {item.rating}</Text>}
-                </View>
+            style={styles.tabList}
+            contentContainerStyle={styles.tabRow}
+            renderItem={({ item: t }) => (
+              <TouchableOpacity onPress={() => setOutfitTab(t)} style={[styles.tab, outfitTab === t && styles.tabActive]}>
+                <Text style={[styles.tabText, outfitTab === t && styles.tabTextActive]}>{t}</Text>
               </TouchableOpacity>
             )}
           />
-        )}
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>My Items</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('ClosetTab')}>
-            <Text style={styles.viewAll}>View all</Text>
-          </TouchableOpacity>
-        </View>
-        <FlatList
-          horizontal
-          data={itemTabs}
-          keyExtractor={(t) => t}
-          showsHorizontalScrollIndicator={false}
-          style={styles.tabList}
-          contentContainerStyle={styles.tabRow}
-          renderItem={({ item: t }) => (
-            <TouchableOpacity onPress={() => setItemTab(t)} style={[styles.tab, itemTab === t && styles.tabActive]}>
-              <Text style={[styles.tabText, itemTab === t && styles.tabTextActive]}>{t}</Text>
-            </TouchableOpacity>
+          {outfits.length === 0 ? (
+            // Real illustrated empty state (client-provided asset), not
+            // just a plain "No outfits yet" line — previously this
+            // section gave a first-time user almost nothing to look at.
+            <View style={styles.emptyStateInCard}>
+              <View style={styles.emptyStateImage}><CreateOutfitIllustration /></View>
+              <Text style={styles.emptyStateTitle}>Create your first look</Text>
+              <Text style={styles.emptyStateBody}>Put together outfits you love and save them for whenever you need a little style inspiration.</Text>
+              <TouchableOpacity style={styles.emptyStateButton} onPress={() => navigation.navigate('OutfitsTab', { screen: 'CreateOutfit' })}>
+                <Text style={styles.emptyStateButtonText}>Create outfit</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <FlatList
+              horizontal
+              data={outfits}
+              keyExtractor={(o) => o.id}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: spacing.sm, paddingTop: spacing.xs }}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={styles.outfitCard} onPress={() => navigation.navigate('OutfitsTab')}>
+                  <View style={styles.outfitThumbRow}>
+                    <ItemThumb item={item.itemIds?.[0] ? outfitPreviews[item.itemIds[0]] ?? null : null} size={80} noBorder />
+                  </View>
+                  {/* Bug: outfit cards had no way to favorite them at all —
+                      item cards below already do. Same heart, same spot. */}
+                  <TouchableOpacity
+                    style={styles.itemHeart}
+                    onPress={() => { apiSetOutfitFavorite(item.id, !item.isFavorite); setOutfits((prev) => prev.map((o) => (o.id === item.id ? { ...o, isFavorite: !item.isFavorite } : o))); }}
+                  >
+                    <Text style={{ color: item.isFavorite ? colors.heart : colors.inkMuted }}>{item.isFavorite ? '♥' : '♡'}</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.outfitName} numberOfLines={1}>{item.name ?? 'Outfit'}</Text>
+                  <View style={styles.outfitMetaRow}>
+                    <Text style={styles.outfitMeta}>{item.brand ?? `${item.itemIds?.length ?? 0} pieces`}</Text>
+                    {item.rating != null && <Text style={styles.outfitRating}>★ {item.rating}</Text>}
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
           )}
-        />
-        {items.length === 0 ? (
-          <View style={[styles.emptyStateCard, { marginBottom: spacing.lg }]}>
-            <View style={styles.emptyStateImage}><BuildWardrobeIllustration /></View>
-            <Text style={styles.emptyStateTitle}>Build Your Wardrobe</Text>
-            <Text style={styles.emptyStateBody}>Add your clothes, shoes, bags, and accessories so everything you own is easy to find and style.</Text>
-            <TouchableOpacity style={styles.emptyStateButton} onPress={() => navigation.navigate('ClosetTab', { screen: 'AddItem' })}>
-              <Text style={styles.emptyStateButtonText}>Add Item</Text>
+        </View>
+
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeaderInCard}>
+            <Text style={styles.sectionTitle}>My Items</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('ClosetTab')}>
+              <Text style={styles.viewAll}>View all</Text>
             </TouchableOpacity>
           </View>
-        ) : (
           <FlatList
             horizontal
-            data={items}
-            keyExtractor={(i) => i.id}
+            data={itemTabs}
+            keyExtractor={(t) => t}
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.lg }}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.itemCard}
-                onPress={() => navigation.navigate('ClosetTab', { screen: 'ItemDetails', params: { itemId: item.id } })}
-              >
-                <ItemThumb item={item} size={80} />
-              <TouchableOpacity
-                style={styles.itemHeart}
-                onPress={() => { setItemFavorite(item.id, !item.isFavorite); load(); }}
-              >
-                <Text style={{ color: item.isFavorite ? colors.heart : colors.inkMuted }}>{item.isFavorite ? '♥' : '♡'}</Text>
+            style={styles.tabList}
+            contentContainerStyle={styles.tabRow}
+            renderItem={({ item: t }) => (
+              <TouchableOpacity onPress={() => setItemTab(t)} style={[styles.tab, itemTab === t && styles.tabActive]}>
+                <Text style={[styles.tabText, itemTab === t && styles.tabTextActive]}>{t}</Text>
               </TouchableOpacity>
-              <Text style={styles.itemLabel} numberOfLines={1}>{item.color} {item.category}</Text>
-            </TouchableOpacity>
-          )}
+            )}
           />
-        )}
+          {items.length === 0 ? (
+            <View style={styles.emptyStateInCard}>
+              <View style={styles.emptyStateImage}><BuildWardrobeIllustration /></View>
+              <Text style={styles.emptyStateTitle}>Build Your Wardrobe</Text>
+              <Text style={styles.emptyStateBody}>Add your clothes, shoes, bags, and accessories so everything you own is easy to find and style.</Text>
+              <TouchableOpacity style={styles.emptyStateButton} onPress={() => navigation.navigate('ClosetTab', { screen: 'AddItem' })}>
+                <Text style={styles.emptyStateButtonText}>Add Item</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <FlatList
+              horizontal
+              data={items}
+              keyExtractor={(i) => i.id}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: spacing.sm, paddingTop: spacing.xs }}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.itemCard}
+                  onPress={() => navigation.navigate('ClosetTab', { screen: 'ItemDetails', params: { itemId: item.id } })}
+                >
+                  <ItemThumb item={item} size={80} />
+                <TouchableOpacity
+                  style={styles.itemHeart}
+                  onPress={() => { setItemFavorite(item.id, !item.isFavorite); load(); }}
+                >
+                  <Text style={{ color: item.isFavorite ? colors.heart : colors.inkMuted }}>{item.isFavorite ? '♥' : '♡'}</Text>
+                </TouchableOpacity>
+                <Text style={styles.itemLabel} numberOfLines={1}>{item.color} {item.category}</Text>
+              </TouchableOpacity>
+            )}
+            />
+          )}
+        </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Browse by category</Text>
+          <Text style={[styles.sectionTitle, styles.sectionTitleLoose]}>Browse by category</Text>
         </View>
         <FlatList
           horizontal
@@ -428,7 +444,7 @@ export default function HomeScreen() {
         {uncategorizedItems.length > 0 && (
           <>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Uncategorized</Text>
+              <Text style={[styles.sectionTitle, styles.sectionTitleLoose]}>Uncategorized</Text>
             </View>
             <FlatList
               horizontal
@@ -511,7 +527,10 @@ function makeStyles(colors: any, type: any) {
     topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
     // Small, quiet label rather than a big "Good morning" — this is the
     // Fits home screen's own name, not a greeting banner.
-    greeting: { fontSize: 13, fontWeight: '600', color: colors.inkMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+    // Matches type.h1 exactly — same size/weight/color as "My Outfits",
+    // "My Items", etc. elsewhere on this screen, in Title Case (was
+    // small, uppercase, muted-grey; now a real heading, sentence case).
+    greeting: { ...type.h1 },
     darkModeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     profileButton: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginLeft: 2 },
     menuBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'flex-end' },
@@ -554,7 +573,17 @@ function makeStyles(colors: any, type: any) {
     ootdLoadingText: { color: colors.white, fontSize: 13, fontWeight: '600' },
     ootdPreviewRow: { flexDirection: 'row' },
     ootdPreviewThumb: { marginLeft: -10, borderRadius: radius.sm, overflow: 'hidden', borderWidth: 2, borderColor: colors.white },
-    sectionTitle: { ...type.h2, paddingHorizontal: spacing.lg },
+    sectionTitle: { ...type.h2 },
+    // Heading, chips and content (illustration or list) live inside
+    // one shared card now, matching the original reference — not
+    // three separate things floating on the plain page.
+    sectionCard: {
+      backgroundColor: colors.card, borderRadius: radius.lg, marginHorizontal: spacing.lg,
+      marginTop: spacing.lg, padding: spacing.md, ...cardShadow,
+    },
+    sectionHeaderInCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
+    emptyStateInCard: { alignItems: 'center', paddingTop: spacing.sm },
+    sectionTitleLoose: { paddingHorizontal: spacing.lg },
     // Illustrated empty states — matches the client reference exactly:
     // white card, illustration, bold title, muted description, full-
     // width black pill button. cardShadow gives it real elevation
@@ -578,11 +607,15 @@ function makeStyles(colors: any, type: any) {
     statIcon: { fontSize: 15, marginBottom: 2 },
     statNum: { fontSize: 16, fontWeight: '700', color: colors.ink },
     statLabel: { fontSize: 10.5, color: colors.inkMuted, marginTop: 2 },
-    tabList: { flexGrow: 0, maxHeight: 40 },
+    // Bug: 40 was too tight once paddingVertical (16, from tabRow) +
+    // the pill's own border/padding (~26) are added up — it clipped a
+    // couple of pixels off the bottom of the row, right where letter
+    // descenders (g/y/j) live, cutting them off mid-glyph.
+    tabList: { flexGrow: 0, maxHeight: 48 },
     tabRow: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, gap: spacing.xs, alignItems: 'center' },
     tab: { paddingVertical: 5, paddingHorizontal: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, marginRight: 6 },
     tabActive: { backgroundColor: colors.lavender, borderColor: colors.lavenderDeep },
-    tabText: { fontSize: 11, color: colors.ink, fontWeight: '500' },
+    tabText: { fontSize: 11, lineHeight: 15, color: colors.ink, fontWeight: '500' },
     tabTextActive: { fontWeight: '700' },
     outfitCard: { width: 110, backgroundColor: colors.bgSoft, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.sm },
     outfitThumbRow: { alignItems: 'center', marginBottom: spacing.xs },

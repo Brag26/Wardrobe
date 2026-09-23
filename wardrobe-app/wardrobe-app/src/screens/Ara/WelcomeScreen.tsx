@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { AraMascot } from '../../components/AraMascot';
 import { AraBubble } from '../../components/AraBubble';
-import { AppHeader } from '../../components/AppHeader';
+import { PageHeader } from '../../components/PageHeader';
 import { getClosetOverview } from '../../api/wardrobeApi';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
@@ -19,7 +19,7 @@ export default function WelcomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <AppHeader />
+      <PageHeader title="Ara" />
       <View style={styles.center}>
         <AraMascot size={210} />
         <View style={{ height: spacing.lg }} />

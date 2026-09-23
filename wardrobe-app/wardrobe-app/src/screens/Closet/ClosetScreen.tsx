@@ -7,8 +7,9 @@ import { FigmaIcon } from '../../components/icons/FigmaIcon';
 import { getWardrobeItems, setItemFavorite, getClosetOverview, getAttributeSuggestions } from '../../api/wardrobeApi';
 import { ItemThumb } from '../../components/ItemThumb';
 import { FabMenu } from '../../components/FabMenu';
+import { BuildWardrobeIllustration } from '../../components/illustrations/EmptyStateIllustrations';
 import { FilterPanel, FilterValues } from '../../components/FilterPanel';
-import { AppHeader } from '../../components/AppHeader';
+import { PageHeader } from '../../components/PageHeader';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
 
@@ -101,9 +102,9 @@ export default function ClosetScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <AppHeader />
+      <PageHeader title="Closet" />
       <View style={styles.header}>
-        <Text style={styles.title}>Closet</Text>
+        <View style={{ flex: 1 }} />
         <View style={{ flexDirection: 'row', gap: spacing.xs }}>
           <TouchableOpacity style={styles.iconButton} onPress={() => setFilterPanelOpen(true)}>
             <FigmaIcon name="filter" size={16} color={colors.ink} />
@@ -170,7 +171,10 @@ export default function ClosetScreen() {
               <ActivityIndicator color={colors.inkMuted} />
             </View>
           ) : (
-            <Text style={styles.empty}>No items yet — tap Add items below.</Text>
+            <View style={styles.emptyState}>
+              <View style={styles.emptyStateImage}><BuildWardrobeIllustration /></View>
+              <Text style={styles.empty}>No items yet — tap Add items below.</Text>
+            </View>
           )
         }
         renderItem={({ item }) => (
@@ -255,7 +259,9 @@ function makeStyles(colors: any, type: any) {
     },
     itemName: { fontSize: 12, fontWeight: '600', color: colors.ink, marginTop: spacing.xs, textTransform: 'capitalize' },
     itemBrand: { fontSize: 10, color: colors.inkMuted },
-    empty: { ...type.muted, textAlign: 'center', marginTop: spacing.xxl, paddingHorizontal: spacing.lg },
+    empty: { ...type.muted, textAlign: 'center', paddingHorizontal: spacing.lg },
+    emptyState: { alignItems: 'center', marginTop: spacing.xl },
+    emptyStateImage: { height: 140, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
     addButton: {
       position: 'absolute', bottom: spacing.lg, left: spacing.lg, right: spacing.lg,
       backgroundColor: colors.black, borderRadius: radius.pill, paddingVertical: 16, alignItems: 'center',

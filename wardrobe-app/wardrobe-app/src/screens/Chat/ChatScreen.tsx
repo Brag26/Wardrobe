@@ -7,7 +7,6 @@ import { FigmaIcon } from '../../components/icons/FigmaIcon';
 import * as ImagePicker from 'expo-image-picker';
 import { getChatHistory, sendChatMessage, clearChatHistory, getItemsByIds } from '../../api/wardrobeApi';
 import { AraMascot } from '../../components/AraMascot';
-import { AppHeader } from '../../components/AppHeader';
 import { ItemThumb } from '../../components/ItemThumb';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
@@ -166,9 +165,16 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <AppHeader />
       <View style={styles.header}>
         <View style={styles.headerTitleRow}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.navigate('HomeTab')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Back to Fits"
+          >
+            <FigmaIcon name="back" size={16} color={colors.ink} />
+          </TouchableOpacity>
           <AraMascot size={40} />
           <View style={{ marginLeft: spacing.xs }}>
             <Text style={styles.title}>Ara</Text>
@@ -299,6 +305,7 @@ function makeStyles(colors: any, type: any) {
   container: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center' },
+  backButton: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.xs },
   title: { fontSize: 19, fontWeight: '700', color: colors.ink },
   tagline: { fontSize: 11, color: colors.inkMuted, marginTop: 1 },
   headerActions: { flexDirection: 'row', gap: spacing.xs },
