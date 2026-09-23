@@ -8,6 +8,7 @@ import { listOutfits, getOutfitCategories, getItemsByIds, deleteOutfit, updateOu
 import { collageLayout } from '../../utils/outfitCollage';
 import { ItemThumb } from '../../components/ItemThumb';
 import { FilterPanel, FilterValues } from '../../components/FilterPanel';
+import { AppHeader } from '../../components/AppHeader';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
 
@@ -156,6 +157,7 @@ export default function OutfitsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <AppHeader />
       <View style={styles.header}>
         <Text style={styles.title}>My Outfits</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: spacing.xs, flexShrink: 1 }}>

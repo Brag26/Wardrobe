@@ -7,6 +7,7 @@ import { FigmaIcon } from '../../components/icons/FigmaIcon';
 import { getWardrobeItems, setItemFavorite, getClosetOverview, getAttributeSuggestions } from '../../api/wardrobeApi';
 import { ItemThumb } from '../../components/ItemThumb';
 import { FilterPanel, FilterValues } from '../../components/FilterPanel';
+import { AppHeader } from '../../components/AppHeader';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
 
@@ -92,6 +93,7 @@ export default function ClosetScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <AppHeader />
       <View style={styles.header}>
         <Text style={styles.title}>Closet</Text>
         <View style={{ flexDirection: 'row', gap: spacing.xs }}>

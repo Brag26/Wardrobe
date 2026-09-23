@@ -7,6 +7,7 @@ import { FigmaIcon } from '../../components/icons/FigmaIcon';
 import * as ImagePicker from 'expo-image-picker';
 import { getChatHistory, sendChatMessage, clearChatHistory, getItemsByIds } from '../../api/wardrobeApi';
 import { AraMascot } from '../../components/AraMascot';
+import { AppHeader } from '../../components/AppHeader';
 import { ItemThumb } from '../../components/ItemThumb';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
@@ -165,6 +166,7 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <AppHeader />
       <View style={styles.header}>
         <View style={styles.headerTitleRow}>
           <AraMascot size={40} />

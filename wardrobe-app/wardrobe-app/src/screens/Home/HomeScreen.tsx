@@ -8,6 +8,7 @@ import { FigmaIcon } from '../../components/icons/FigmaIcon';
 import { getClosetOverview, getWardrobeItems, listOutfits, setItemFavorite, getItemsByIds, getTodayOutfit } from '../../api/wardrobeApi';
 import { useAuthStore } from '../../store/authStore';
 import { ItemThumb } from '../../components/ItemThumb';
+import { AppHeader } from '../../components/AppHeader';
 import { AraMascot } from '../../components/AraMascot';
 import { spacing, radius, cardShadow, COLOR_SWATCHES } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
@@ -29,7 +30,7 @@ export default function HomeScreen() {
   const [itemTab, setItemTab] = useState('All');
   const [refreshing, setRefreshing] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  // Menu state moved into the shared AppHeader component below.
   const fabAnim = React.useRef(new Animated.Value(0)).current;
 
   // "Outfit of the Day" — single-tap generate/reveal on the banner
@@ -200,6 +201,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
+        <AppHeader />
         <View style={styles.topRow}>
           <Text style={styles.greeting}>Good morning</Text>
           <View style={styles.darkModeRow}>
@@ -209,44 +211,8 @@ export default function HomeScreen() {
             <TouchableOpacity style={styles.profileButton} onPress={() => navigation.navigate('Profile', { screen: 'StyleProfileHub' })}>
               <Ionicons name="person-outline" size={16} color={colors.ink} />
             </TouchableOpacity>
-            {/* Dark mode toggle removed — theme is force-disabled to
-                light-only now (see ThemeContext.tsx). */}
-            {/* Home is the one screen with no bottom nav bar (by
-                design, per the client spec) — without this, there was
-                genuinely no way to reach Ara/Closet/Outfits/Chat from
-                Home except "View all" links that only appear once
-                there's data, which left a first-time user with an
-                empty closet feeling stuck, staring at just the
-                "Create outfit" button. This gives Home its own real
-                way out to every tab, matching the menu icon shown in
-                the reference mockup that was never actually wired up. */}
-            <TouchableOpacity style={styles.profileButton} onPress={() => setMenuOpen(true)}>
-              <Ionicons name="menu-outline" size={18} color={colors.ink} />
-            </TouchableOpacity>
           </View>
         </View>
-
-        <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
-          <TouchableOpacity style={styles.menuBackdrop} activeOpacity={1} onPress={() => setMenuOpen(false)}>
-            <View style={styles.menuSheet}>
-              {[
-                { label: 'Ara', icon: 'sparkles-outline', go: () => navigation.navigate('AraTab') },
-                { label: 'Closet', icon: 'shirt-outline', go: () => navigation.navigate('ClosetTab') },
-                { label: 'Outfits', icon: 'albums-outline', go: () => navigation.navigate('OutfitsTab') },
-                { label: 'Chat', icon: 'chatbubble-outline', go: () => navigation.navigate('ChatTab') },
-              ].map((item) => (
-                <TouchableOpacity
-                  key={item.label}
-                  style={styles.menuItem}
-                  onPress={() => { setMenuOpen(false); item.go(); }}
-                >
-                  <Ionicons name={item.icon as any} size={18} color={colors.ink} />
-                  <Text style={styles.menuItemText}>{item.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </TouchableOpacity>
-        </Modal>
 
         <TouchableOpacity
           style={styles.araBanner}
