@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +26,13 @@ export default function ClosetScreen() {
   const route = useRoute<any>();
   const { colors, type } = useAppTheme();
   const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
+  // QA: the favourite heart was floating at the far right of the card, away
+  // from the photo, because the photo was a fixed 140px wide inside a wider
+  // card. Size the photo to the real card width instead (screen width minus
+  // the 24px side padding on each side and the 8px gap, split in two), so the
+  // heart lands on the photo's top-right corner.
+  const { width: screenWidth } = useWindowDimensions();
+  const cardWidth = Math.floor((screenWidth - spacing.lg * 2 - spacing.sm) / 2);
 
   const [items, setItems] = useState<any[]>([]);
   const [category, setCategory] = useState(route.params?.initialCategory ?? 'All');
@@ -166,9 +173,9 @@ export default function ClosetScreen() {
           )
         }
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })}>
+          <TouchableOpacity style={[styles.card, { width: cardWidth }]} onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })}>
             <View style={styles.thumbWrap}>
-              <ItemThumb item={item} size={140} />
+              <ItemThumb item={item} size={cardWidth} />
               <TouchableOpacity
                 style={styles.favButton}
                 onPress={() => { setItemFavorite(item.id, !item.isFavorite); load(category, filters, searchText); }}
@@ -209,7 +216,13 @@ function makeStyles(colors: any, type: any) {
     iconButton: { width: 34, height: 34, borderRadius: radius.pill, backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
     filterBadge: { position: 'absolute', top: -3, right: -3, backgroundColor: colors.black, borderRadius: 8, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
     filterBadgeText: { color: colors.white, fontSize: 9, fontWeight: '700' },
-    tabList: { flexGrow: 0, maxHeight: 52, marginBottom: spacing.sm },
+    // Pill background lives on the list itself (not its content container),
+    // so the last chip can always be scrolled fully into view on Android.
+    tabList: {
+      flexGrow: 0, maxHeight: 52, marginBottom: spacing.sm,
+      marginHorizontal: spacing.lg, backgroundColor: colors.bgSoft, borderRadius: radius.pill,
+      borderWidth: 1, borderColor: colors.border, overflow: 'hidden',
+    },
     // Wrapped in a capsule/track background (segmented-control look)
     // so the whole row reads as one grouped control, not a loose
     // scatter of floating pills — plus a small label above it, since
@@ -221,16 +234,12 @@ function makeStyles(colors: any, type: any) {
     },
     searchInput: { flex: 1, fontSize: 14, color: colors.ink, paddingVertical: 0 },
     sectionLabel: { fontSize: 12, fontWeight: '700', color: colors.inkMuted, paddingHorizontal: spacing.lg, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3 },
-    tabRow: {
-      paddingHorizontal: 6, paddingVertical: 6, gap: spacing.xs, alignItems: 'center',
-      backgroundColor: colors.bgSoft, marginHorizontal: spacing.lg, borderRadius: radius.pill,
-      borderWidth: 1, borderColor: colors.border,
-    },
+    tabRow: { paddingHorizontal: 6, paddingVertical: 6, gap: spacing.xs, alignItems: 'center' },
     tab: { paddingVertical: 5, paddingHorizontal: spacing.sm, borderRadius: radius.pill, backgroundColor: 'transparent', marginRight: 2 },
     tabActive: { backgroundColor: colors.card ?? colors.bg, borderWidth: 1, borderColor: colors.lavenderDeep },
     tabText: { fontSize: 12, color: colors.ink },
     tabTextActive: { fontWeight: '700' },
-    card: { flex: 1 },
+    card: {},
     thumbWrap: { position: 'relative', width: '100%' },
     favButton: {
       position: 'absolute', top: spacing.xs, right: spacing.xs, width: 28, height: 28, borderRadius: 14,

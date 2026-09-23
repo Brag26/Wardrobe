@@ -68,12 +68,18 @@ export async function createManualOutfit(req: Request, res: Response) {
   if (itemIds.length === 0) {
     return res.status(400).json({ error: 'At least one item is required to create an outfit' });
   }
+  // QA: outfits must have a name. The app already blocks this; checking here
+  // too so an older app build (or any other client) can't save a blank one.
+  const trimmedName = typeof name === 'string' ? name.trim() : '';
+  if (!trimmedName) {
+    return res.status(400).json({ error: 'Please enter a name for the outfit' });
+  }
 
   const now = Date.now();
   const outfit: Outfit = {
     id: randomUUID(), userId,
     sessionId: null,
-    name: name ?? null, description: description ?? null,
+    name: trimmedName, description: description ?? null,
     itemIdsBySlot: slots, itemIds,
     category: category ?? null, customCategories: customCategories ?? [],
     season: season ?? null, rating: rating ?? null, aesthetic: aesthetic ?? null,
@@ -92,6 +98,13 @@ export async function updateOutfitDetail(req: Request, res: Response) {
   const allowed = ['name', 'description', 'category', 'customCategories', 'season', 'rating', 'aesthetic', 'itemIdsBySlot', 'itemIds', 'brand', 'price', 'size', 'material'];
   const patch: Record<string, any> = {};
   for (const key of allowed) if (key in req.body) patch[key] = req.body[key];
+  // Renaming to blank used to succeed silently. Only checked when the
+  // request actually touches the name, so other edits are unaffected.
+  if ('name' in patch) {
+    const trimmedName = typeof patch.name === 'string' ? patch.name.trim() : '';
+    if (!trimmedName) return res.status(400).json({ error: 'Please enter a name for the outfit' });
+    patch.name = trimmedName;
+  }
   await updateOutfit(userId, req.params.id, patch);
   // Editing an outfit's pieces (adding a different item) is just as
   // real a "pulled into an outfit" moment as creating one from

@@ -252,10 +252,15 @@ export default function AddItemScreen() {
   // and the honest thing is to say so and let the person move on
   // rather than keep silently spinning.
   const [bgStatus, setBgStatus] = useState<string | null>(null);
+  const [bgError, setBgError] = useState<string | null>(null);
   const [elapsedSec, setElapsedSec] = useState(0);
+  // Bumped by "Try again" to restart the polling below.
+  const [pollRun, setPollRun] = useState(0);
+  const [retrying, setRetrying] = useState(false);
   React.useEffect(() => {
     if (!savedItem) return;
-    setBgStatus(savedItem.backgroundRemoval?.status ?? 'pending');
+    setBgStatus(pollRun === 0 ? (savedItem.backgroundRemoval?.status ?? 'pending') : 'pending');
+    setBgError(null);
     setElapsedSec(0);
     const startedAt = Date.now();
 
@@ -271,6 +276,7 @@ export default function AddItemScreen() {
       try {
         const fresh = await (await import('../../api/wardrobeApi')).getWardrobeItem(savedItem.id);
         setBgStatus(fresh.backgroundRemoval?.status ?? 'done');
+        setBgError(fresh.backgroundRemoval?.error ?? null);
         if (fresh.backgroundRemoval?.status === 'done' || fresh.backgroundRemoval?.status === 'failed') {
           clearInterval(interval);
           clearInterval(tick);
@@ -278,7 +284,21 @@ export default function AddItemScreen() {
       } catch { clearInterval(interval); clearInterval(tick); }
     }, 2500);
     return () => { clearInterval(interval); clearInterval(tick); };
-  }, [savedItem]);
+  }, [savedItem, pollRun]);
+
+  const retryBgRemoval = async () => {
+    if (!savedItem) return;
+    setRetrying(true);
+    try {
+      const { retryBackgroundRemoval } = await import('../../api/wardrobeApi');
+      await retryBackgroundRemoval(savedItem.id);
+      setPollRun((n) => n + 1);
+    } catch (e: any) {
+      setBgError(e?.message ?? 'Could not start a retry.');
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   const bgMessage = () => {
     if (bgStatus === 'done') return 'Background cleanup is done — it looks great!';
@@ -299,6 +319,17 @@ export default function AddItemScreen() {
           </Text>
           {bgStatus === 'processing' || bgStatus === 'pending' ? (
             <View style={styles.skeletonBox}><ActivityIndicator color={colors.inkMuted} /></View>
+          ) : null}
+          {bgStatus === 'failed' ? (
+            <>
+              {bgError ? (
+                <Text style={[type.muted, { textAlign: 'center', marginTop: spacing.sm, fontSize: 11 }]} numberOfLines={4} selectable>
+                  Reason: {bgError}
+                </Text>
+              ) : null}
+              <View style={{ height: spacing.md }} />
+              <Button label={retrying ? 'Starting…' : 'Try again'} onPress={retryBgRemoval} variant="outline" />
+            </>
           ) : null}
           <View style={{ height: spacing.lg }} />
           <Button label="Done" onPress={() => navigation.goBack()} />

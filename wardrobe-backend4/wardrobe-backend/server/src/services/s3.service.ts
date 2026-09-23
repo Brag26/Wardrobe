@@ -148,79 +148,112 @@ export async function verifyUploadedPhotoSize(key: string): Promise<void> {
 // takes an image in as inline base64 (not a URL — the native API
 // doesn't accept image_url the way the OpenAI-compat shim does) and
 // gets an edited image back the same way.
+// One Gemini call with a hard timeout. Throws a GeminiError that says
+// whether it's worth retrying (overload, timeout, no image returned) or
+// not (bad API key, bad model name, bad request).
+class GeminiError extends Error {
+  constructor(message: string, public retryable: boolean) { super(message); }
+}
+
+const GEMINI_TIMEOUT_MS = 90_000;
+
+async function callGeminiOnce(model: string, apiKey: string, prompt: string, mimeType: string, base64: string): Promise<Buffer> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: 'POST',
+        // Key in the header rather than the URL so it never ends up in logs/error text.
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
+          generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+        }),
+        signal: controller.signal,
+      }
+    );
+  } catch (err: any) {
+    if (err?.name === 'AbortError') throw new GeminiError(`Gemini (${model}) timed out after ${GEMINI_TIMEOUT_MS / 1000}s`, true);
+    throw new GeminiError(`Could not reach Gemini (${model}): ${err?.message ?? err}`, true);
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!res.ok) {
+    const body = (await res.text().catch(() => '')).slice(0, 400);
+    // 429 = rate limit / quota, 5xx = Google overloaded: worth retrying.
+    // 400/401/403/404 = wrong key, key without access, or wrong model name: retrying won't help.
+    const retryable = res.status === 429 || res.status >= 500;
+    throw new GeminiError(`Gemini (${model}) returned ${res.status}: ${body}`, retryable);
+  }
+
+  const data: any = await res.json();
+  const parts: any[] = data?.candidates?.[0]?.content?.parts ?? [];
+  // Gemini 3.x can include "thought" parts (draft images from its thinking
+  // step). Take the last real, non-thought image part as the final result.
+  const imageParts = parts.filter((p) => (p.inline_data || p.inlineData) && !p.thought);
+  const inline = imageParts.length ? (imageParts[imageParts.length - 1].inline_data ?? imageParts[imageParts.length - 1].inlineData) : null;
+
+  if (!inline?.data) {
+    const textPart = parts.find((p) => typeof p.text === 'string' && !p.thought)?.text;
+    const finishReason = data?.candidates?.[0]?.finishReason;
+    const blockReason = data?.promptFeedback?.blockReason;
+    throw new GeminiError(
+      `Gemini (${model}) did not return an image. finishReason=${finishReason ?? 'none'} blockReason=${blockReason ?? 'none'}` +
+      (textPart ? ` text="${String(textPart).slice(0, 200)}"` : ''),
+      true // image models skip the image now and then; a second try usually works
+    );
+  }
+  return Buffer.from(inline.data, 'base64');
+}
+
+// Gemini image editing, with retries. Previously a single hiccup (Google
+// returning 503 "model overloaded", a 429, a slow response, or the model
+// answering with text only) failed the item permanently. Now:
+//   attempt 1: main model
+//   attempt 2: main model again after a short wait
+//   attempt 3: fallback model (full Nano Banana 2 by default)
+// Errors that retrying can't fix (bad key, unknown model) fail at once
+// with a clear message.
 async function runGeminiBackgroundRemoval(imageUrl: string, apiKey: string): Promise<Buffer> {
-  // Fallback default kept in sync with .env.example — gemini-2.5-flash-image
-  // is deprecated (Google shutdown Oct 2, 2026), so the code-level
-  // fallback needs to point at a still-live model too, not just the
-  // example file.
+  if (!apiKey) {
+    throw new Error('BG_REMOVAL_API_KEY is not set on the server. Add your Gemini API key to the backend environment variables and redeploy.');
+  }
   const model = process.env.BG_REMOVAL_GEMINI_MODEL || 'gemini-3.1-flash-lite-image';
+  const fallbackModel = process.env.BG_REMOVAL_GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-image';
 
   const imageRes = await fetch(imageUrl);
   if (!imageRes.ok) throw new Error(`Could not fetch source image for Gemini: ${imageRes.status}`);
   const imageBuffer = Buffer.from(await imageRes.arrayBuffer());
-  const mimeType = imageRes.headers.get('content-type') || 'image/jpeg';
+  const mimeType = (imageRes.headers.get('content-type') || 'image/jpeg').split(';')[0];
+  const base64 = imageBuffer.toString('base64');
 
-  // Explicitly transparent, not "white background" — the app's whole
-  // outfit-collage design relies on items layering directly onto a
-  // shared card background with nothing behind them (see
-  // OutfitDetailScreen/OutfitsScreen's collageLayout). A white
-  // background, even if the removal itself "succeeds," would show up
-  // as a visible white box around every item once several are
-  // layered together — genuinely the wrong output for this use case,
-  // not just a cosmetic preference. Named PNG + alpha explicitly since
-  // that's the actual mechanism that makes transparency real rather
-  // than just requested.
   const prompt = 'Remove the person/model and everything else from this photo — keep ONLY the clothing item itself. Output a PNG with a fully transparent background (real alpha transparency, not a white or colored background) around the garment, cut cleanly along its actual edges. Preserve the garment\'s exact color, shape, texture, and details exactly as shown — do not alter, redesign, or restyle the item itself, only remove everything that is not the garment.';
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inline_data: { mime_type: mimeType, data: imageBuffer.toString('base64') } },
-          ],
-        }],
-        generationConfig: {
-          // Some documentation for the 3.1 image generation indicates
-          // TEXT + IMAGE together is required, unlike the older 2.5
-          // model which accepted IMAGE alone — including both here
-          // since the response-parsing below already specifically
-          // searches for the inline_data/image part and ignores
-          // anything else, so this is safe either way.
-          responseModalities: ['TEXT', 'IMAGE'],
-        },
-      }),
+  const attempts = [
+    { model, waitMs: 0 },
+    { model, waitMs: 3000 },
+    { model: fallbackModel, waitMs: 6000 },
+  ];
+  const errors: string[] = [];
+  for (let i = 0; i < attempts.length; i++) {
+    const { model: m, waitMs } = attempts[i];
+    if (waitMs) await new Promise((r) => setTimeout(r, waitMs));
+    try {
+      const buf = await callGeminiOnce(m, apiKey, prompt, mimeType, base64);
+      if (i > 0) console.log(`[s3.service] Gemini background removal succeeded on attempt ${i + 1} (${m}).`);
+      return buf;
+    } catch (err: any) {
+      const msg = err?.message ?? String(err);
+      errors.push(`#${i + 1}: ${msg}`);
+      console.warn(`[s3.service] Gemini attempt ${i + 1}/${attempts.length} failed: ${msg}`);
+      if (err instanceof GeminiError && !err.retryable) break;
     }
-  );
-
-  if (!res.ok) throw new Error(`Gemini background removal failed: ${res.status} ${await res.text().catch(() => '')}`);
-
-  const data: any = await res.json();
-  const parts = data?.candidates?.[0]?.content?.parts ?? [];
-  const imagePart = parts.find((p: any) => p.inline_data || p.inlineData);
-  const inline = imagePart?.inline_data ?? imagePart?.inlineData;
-  if (!inline?.data) {
-    // Previously this threw a generic message with no visibility into
-    // WHAT Gemini actually sent back instead of an image — a text-only
-    // response (very plausibly a safety-policy refusal, since this
-    // task edits a photo of a real person) would hit this exact path
-    // with zero clue why. Surfacing the actual text part, finishReason,
-    // and any promptFeedback block reason so the next failure in the
-    // logs shows the real cause instead of just "no image came back."
-    const textPart = parts.find((p: any) => typeof p.text === 'string')?.text;
-    const finishReason = data?.candidates?.[0]?.finishReason;
-    const blockReason = data?.promptFeedback?.blockReason;
-    throw new Error(
-      `Gemini did not return an edited image. finishReason=${finishReason ?? 'none'} blockReason=${blockReason ?? 'none'}` +
-      (textPart ? ` responseText="${textPart.slice(0, 300)}"` : ' (no text part in response either)')
-    );
   }
-
-  return Buffer.from(inline.data, 'base64');
+  throw new Error(`Gemini background removal failed. ${errors.join(' | ')}`.slice(0, 1000));
 }
 
 // Client uploads originals via a presigned URL with no Cache-Control

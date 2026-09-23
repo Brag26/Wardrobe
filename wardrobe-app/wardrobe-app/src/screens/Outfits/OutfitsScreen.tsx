@@ -48,6 +48,7 @@ export default function OutfitsScreen() {
   const [active, setActive] = useState('all');
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
   const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
   const [packings, setPackings] = useState<any[]>([]);
   const [filters, setFilters] = useState<FilterValues>({});
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
@@ -124,13 +125,20 @@ export default function OutfitsScreen() {
   const handleSaveName = async () => {
     if (!renaming) return;
     const trimmed = renaming.name.trim();
+    // QA: saving an empty name used to go through silently (dialog closed,
+    // outfit stayed "Untitled"). Block it and say why, inside the dialog.
+    if (!trimmed) {
+      setNameError('Please enter a name for the outfit');
+      return;
+    }
+    setNameError(null);
     setSavingName(true);
     try {
-      await updateOutfit(renaming.id, { name: trimmed || null });
-      setOutfits((prev) => prev.map((o) => (o.id === renaming.id ? { ...o, name: trimmed || null } : o)));
+      await updateOutfit(renaming.id, { name: trimmed });
+      setOutfits((prev) => prev.map((o) => (o.id === renaming.id ? { ...o, name: trimmed } : o)));
       setRenaming(null);
-    } catch {
-      Alert.alert("Couldn't rename", 'Something went wrong — try again.');
+    } catch (e: any) {
+      Alert.alert("Couldn't rename", e?.message || 'Something went wrong — try again.');
     } finally {
       setSavingName(false);
     }
@@ -186,7 +194,7 @@ export default function OutfitsScreen() {
         contentContainerStyle={styles.tabRow}
         renderItem={({ item: c }) => (
           <TouchableOpacity onPress={() => setActive(c)} style={[styles.tab, active === c && styles.tabActive]}>
-            <Text style={[styles.tabText, active === c && styles.tabTextActive]}>{c.replace('_', ' ')}</Text>
+            <Text style={[styles.tabText, active === c && styles.tabTextActive]} numberOfLines={1}>{c.replace(/_/g, ' ')}</Text>
           </TouchableOpacity>
         )}
       />
@@ -319,14 +327,14 @@ export default function OutfitsScreen() {
         }}
       />
 
-      <Modal visible={!!renaming} transparent animationType="fade" onRequestClose={() => setRenaming(null)}>
+      <Modal visible={!!renaming} transparent animationType="fade" onRequestClose={() => { setRenaming(null); setNameError(null); }}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Name this outfit</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, nameError ? styles.modalInputError : null]}
               value={renaming?.name ?? ''}
-              onChangeText={(t) => setRenaming((prev) => (prev ? { ...prev, name: t } : prev))}
+              onChangeText={(t) => { setRenaming((prev) => (prev ? { ...prev, name: t } : prev)); if (nameError && t.trim()) setNameError(null); }}
               placeholder="e.g. Friday date night"
               placeholderTextColor={colors.inkMuted}
               autoFocus
@@ -334,8 +342,9 @@ export default function OutfitsScreen() {
               onSubmitEditing={handleSaveName}
               returnKeyType="done"
             />
+            {nameError ? <Text style={styles.modalErrorText}>{nameError}</Text> : null}
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalCancel} onPress={() => setRenaming(null)}>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => { setRenaming(null); setNameError(null); }}>
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalSave} onPress={handleSaveName} disabled={savingName}>
@@ -384,13 +393,19 @@ function makeStyles(colors: any, type: any) {
   packingCardName: { fontSize: 12, fontWeight: '700', color: colors.ink, marginTop: spacing.xs },
   packingCardDates: { fontSize: 10, color: colors.inkMuted, marginTop: 1 },
   packingCardCount: { fontSize: 10, color: colors.success, fontWeight: '600', marginTop: 2 },
-  tabList: { flexGrow: 0, maxHeight: 52, marginBottom: spacing.sm },
-  sectionLabel: { fontSize: 12, fontWeight: '700', color: colors.inkMuted, paddingHorizontal: spacing.lg, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3 },
-  tabRow: {
-    paddingHorizontal: 6, paddingVertical: 6, gap: spacing.xs, alignItems: 'center',
-    backgroundColor: colors.bgSoft, marginHorizontal: spacing.lg, borderRadius: radius.pill,
-    borderWidth: 1, borderColor: colors.border,
+  // QA: the last chip ("Party Wear") was cut off at the right edge and
+  // couldn't be scrolled fully into view. The grey pill used to be drawn by
+  // the list's *content* container with a side margin, and Android ignores
+  // that right margin when working out how far the list can scroll. The pill
+  // now lives on the list itself, and the content only has padding, so the
+  // list scrolls all the way to the end of the last chip.
+  tabList: {
+    flexGrow: 0, maxHeight: 52, marginBottom: spacing.sm,
+    marginHorizontal: spacing.lg, backgroundColor: colors.bgSoft, borderRadius: radius.pill,
+    borderWidth: 1, borderColor: colors.border, overflow: 'hidden',
   },
+  sectionLabel: { fontSize: 12, fontWeight: '700', color: colors.inkMuted, paddingHorizontal: spacing.lg, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3 },
+  tabRow: { paddingHorizontal: 6, paddingVertical: 6, gap: spacing.xs, alignItems: 'center' },
   tab: { paddingVertical: 5, paddingHorizontal: spacing.sm, borderRadius: radius.pill, backgroundColor: 'transparent', marginRight: 2 },
   tabActive: { backgroundColor: colors.black },
   tabText: { fontSize: 12, color: colors.ink, textTransform: 'capitalize' },
@@ -432,7 +447,9 @@ function makeStyles(colors: any, type: any) {
   },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm, marginTop: spacing.md },
   modalCancel: { paddingVertical: 10, paddingHorizontal: spacing.md },
-  modalCancelText: { color: colors.inkMuted, fontWeight: '600', fontSize: 13 },
+  modalCancelText: { color: colors.ink, fontWeight: '600', fontSize: 13 },
+  modalInputError: { borderColor: colors.danger },
+  modalErrorText: { color: colors.danger, fontSize: 12, marginTop: 6 },
   modalSave: { backgroundColor: colors.black, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: spacing.md },
   modalSaveText: { color: colors.white, fontWeight: '600', fontSize: 13 },
   });
