@@ -45,7 +45,7 @@ export function FabMenu({ actions }: { actions: FabMenuAction[] }) {
               style={[styles.action, { transform: [{ translateY }], opacity: anim }]}
               pointerEvents={open ? 'auto' : 'none'}
             >
-              <Text style={styles.actionLabel} numberOfLines={1}>{action.label}</Text>
+              <Text style={styles.actionLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{action.label}</Text>
               <TouchableOpacity style={styles.actionButton} onPress={() => { toggle(); action.onPress(); }}>
                 <Ionicons name={action.icon} size={17} color={colors.ink} />
               </TouchableOpacity>
@@ -70,7 +70,7 @@ function makeStyles(colors: any) {
     // menu — keeps every action's icon anchored to the same spot
     // regardless of how long its label is.
     action: {
-      position: 'absolute', bottom: 15.5, right: 15.5, width: 210,
+      position: 'absolute', bottom: 15.5, right: 15.5, width: 240,
       flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: spacing.sm,
     },
     actionLabel: {

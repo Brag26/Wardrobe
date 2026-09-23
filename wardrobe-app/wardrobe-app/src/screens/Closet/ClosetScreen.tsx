@@ -217,7 +217,9 @@ export default function ClosetScreen() {
 function makeStyles(colors: any, type: any) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    // Bug: no gap at all between this row and the search bar below it —
+    // they visually touched/overlapped on some devices.
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md },
     title: { ...type.h1 },
     iconButton: { width: 34, height: 34, borderRadius: radius.pill, backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
     filterBadge: { position: 'absolute', top: -3, right: -3, backgroundColor: colors.black, borderRadius: 8, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },

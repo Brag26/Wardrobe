@@ -259,26 +259,26 @@ export default function HomeScreen() {
 
         <Text style={styles.sectionTitle}>Your Closet Overview</Text>
         <View style={styles.statRow}>
-          <View style={styles.statCard}>
+          <TouchableOpacity style={styles.statCard} onPress={() => navigation.navigate('ClosetTab', { screen: 'ClosetHome' })} activeOpacity={0.7}>
             <ClothesIcon />
             <Text style={styles.statNum}>{overview?.totalItems ?? '–'}</Text>
             <Text style={styles.statLabel} numberOfLines={1}>Items</Text>
-          </View>
-          <View style={styles.statCard}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.statCard} onPress={() => navigation.navigate('OutfitsTab', { screen: 'OutfitsHome' })} activeOpacity={0.7}>
             <HangerIcon />
             <Text style={styles.statNum}>{overview?.totalOutfits ?? '–'}</Text>
             <Text style={styles.statLabel} numberOfLines={1}>Outfits</Text>
-          </View>
-          <View style={styles.statCard}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.statCard} onPress={() => navigation.navigate('ClosetTab', { screen: 'Favorites' })} activeOpacity={0.7}>
             <HeartIcon />
             <Text style={styles.statNum}>{overview?.totalFavorites ?? '–'}</Text>
             <Text style={styles.statLabel} numberOfLines={1}>Favorites</Text>
-          </View>
-          <View style={styles.statCard}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.statCard} onPress={() => navigation.navigate('ClosetTab', { screen: 'ClosetHome' })} activeOpacity={0.7}>
             <CategoryIcon />
             <Text style={styles.statNum}>{categoryCount ?? '–'}</Text>
             <Text style={styles.statLabel} numberOfLines={1}>Categories</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.sectionHeader}>
@@ -469,7 +469,7 @@ export default function HomeScreen() {
           const opacity = fabAnim;
           return (
             <Animated.View key={action.label} style={[styles.fabAction, { transform: [{ translateY }], opacity }]} pointerEvents={fabOpen ? 'auto' : 'none'}>
-              <Text style={styles.fabActionLabel}>{action.label}</Text>
+              <Text style={styles.fabActionLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{action.label}</Text>
               <TouchableOpacity
                 style={styles.fabActionButton}
                 onPress={() => { toggleFab(); action.onPress(); }}
@@ -616,8 +616,15 @@ function makeStyles(colors: any, type: any) {
     // row a fixed width and right-justifying its content pins the icon
     // to the same spot for every action; only the label's left edge
     // moves, which is how it should read either way.
+    // Bug: 210px cut it close for the longest labels ("Plan trip
+    // outfits") on devices with larger system font/accessibility text
+    // scaling, letting the label wrap and get clipped rather than stay
+    // on one line. Widened with real margin, and the label itself is
+    // now explicitly pinned to a single line so it can never wrap —
+    // in the rare case it still doesn't fit, it shrinks slightly
+    // rather than wrapping/clipping.
     fabAction: {
-      position: 'absolute', bottom: 15.5, right: 15.5, width: 210,
+      position: 'absolute', bottom: 15.5, right: 15.5, width: 240,
       flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: spacing.sm,
     },
     fabActionLabel: {
