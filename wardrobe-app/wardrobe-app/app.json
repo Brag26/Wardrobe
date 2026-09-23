@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Wardrobe",
-    "slug": "wardrobe-app",
+    "slug": "braga26",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -14,13 +14,40 @@
       }
     },
     "android": {
-      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "package": "com.btv1.wardrobeapp"
     },
-    "web": { "bundler": "metro" },
+    "web": {
+      "bundler": "metro"
+    },
     "runtimeVersion": "1.0.0",
     "plugins": [
-      ["expo-camera", { "cameraPermission": "Used for the Smart Mirror try-on view and adding photos to your closet." }],
-      ["expo-location", { "locationWhenInUsePermission": "Used to show local weather for outfit suggestions." }]
-    ]
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Used for the Smart Mirror try-on view and adding photos to your closet."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Used to show local weather for outfit suggestions."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "1129a028-ce83-45fa-b171-b554a91c3967"
+      }
+    },
+    "owner": "braga26s-team"
   }
 }

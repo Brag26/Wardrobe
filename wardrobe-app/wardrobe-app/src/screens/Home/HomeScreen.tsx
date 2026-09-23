@@ -10,6 +10,7 @@ import { useAuthStore } from '../../store/authStore';
 import { ItemThumb } from '../../components/ItemThumb';
 import { AppHeader } from '../../components/AppHeader';
 import { AraMascot } from '../../components/AraMascot';
+import { CreateOutfitIllustration, BuildWardrobeIllustration } from '../../components/illustrations/EmptyStateIllustrations';
 import { spacing, radius, cardShadow, COLOR_SWATCHES } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
 
@@ -316,7 +317,7 @@ export default function HomeScreen() {
           // just a plain "No outfits yet" line — previously this
           // section gave a first-time user almost nothing to look at.
           <View style={styles.emptyStateCard}>
-            <Image source={require('../../../assets/illustrations/create-outfit.jpg')} style={styles.emptyStateImage} resizeMode="contain" />
+            <View style={styles.emptyStateImage}><CreateOutfitIllustration /></View>
             <Text style={styles.emptyStateTitle}>Create your first look</Text>
             <Text style={styles.emptyStateBody}>Put together outfits you love and save them for whenever you need a little style inspiration.</Text>
             <TouchableOpacity style={styles.emptyStateButton} onPress={() => navigation.navigate('OutfitsTab', { screen: 'CreateOutfit' })}>
@@ -366,7 +367,7 @@ export default function HomeScreen() {
         />
         {items.length === 0 ? (
           <View style={[styles.emptyStateCard, { marginBottom: spacing.lg }]}>
-            <Image source={require('../../../assets/illustrations/build-wardrobe.jpg')} style={styles.emptyStateImage} resizeMode="contain" />
+            <View style={styles.emptyStateImage}><BuildWardrobeIllustration /></View>
             <Text style={styles.emptyStateTitle}>Build Your Wardrobe</Text>
             <Text style={styles.emptyStateBody}>Add your clothes, shoes, bags, and accessories so everything you own is easy to find and style.</Text>
             <TouchableOpacity style={styles.emptyStateButton} onPress={() => navigation.navigate('ClosetTab', { screen: 'AddItem' })}>
@@ -573,7 +574,7 @@ function makeStyles(colors: any, type: any) {
       backgroundColor: colors.card, borderRadius: radius.lg, marginHorizontal: spacing.lg,
       padding: spacing.xl, alignItems: 'center', ...cardShadow,
     },
-    emptyStateImage: { width: 140, height: 140, marginBottom: spacing.md },
+    emptyStateImage: { height: 140, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
     emptyStateTitle: { ...type.h2, marginBottom: spacing.xs, textAlign: 'center' },
     emptyStateBody: { ...type.muted, textAlign: 'center', marginBottom: spacing.lg, paddingHorizontal: spacing.sm },
     emptyStateButton: {

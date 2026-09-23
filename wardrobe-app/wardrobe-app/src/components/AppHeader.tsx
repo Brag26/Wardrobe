@@ -14,7 +14,7 @@ import { spacing, radius, cardShadow } from '../theme/theme';
 import { useAppTheme } from '../theme/ThemeContext';
 
 const MENU_ITEMS = [
-  { label: 'Home', icon: 'home-outline', tab: 'HomeTab' },
+  { label: 'Fits', icon: 'home-outline', tab: 'HomeTab' },
   { label: 'Ara', icon: 'sparkles-outline', tab: 'AraTab' },
   { label: 'Closet', icon: 'shirt-outline', tab: 'ClosetTab' },
   { label: 'Outfits', icon: 'albums-outline', tab: 'OutfitsTab' },
