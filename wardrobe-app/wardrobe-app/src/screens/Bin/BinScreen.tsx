@@ -32,7 +32,7 @@ export default function BinScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader title="Bin" />
       <Text style={styles.subtitle}>Items are permanently deleted after 30 days — or delete one immediately below.</Text>
       <FlatList

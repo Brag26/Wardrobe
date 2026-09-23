@@ -28,7 +28,7 @@ export default function OccasionScreen() {
   const pastels = [colors.pink, colors.lavender, colors.peach, colors.mint, colors.sky];
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader />
       <View style={styles.textBlock}>
         <Text style={type.h1}>Where are we going today?</Text>

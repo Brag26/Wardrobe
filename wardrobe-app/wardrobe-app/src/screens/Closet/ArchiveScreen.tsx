@@ -66,7 +66,7 @@ export default function ArchiveScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader title="Archive" />
       {items.length === 0 ? (
         <Text style={styles.empty}>There are no archived clothes.</Text>

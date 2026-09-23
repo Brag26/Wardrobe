@@ -310,7 +310,7 @@ export default function AddItemScreen() {
 
   if (savedItem) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.doneWrap}>
           <Ionicons name="checkmark-circle" size={56} color={colors.success ?? '#3B8352'} />
           <Text style={[type.h2, { marginTop: spacing.md }]}>Successfully added</Text>
@@ -339,7 +339,7 @@ export default function AddItemScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ padding: spacing.lg }} keyboardShouldPersistTaps="handled">

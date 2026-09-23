@@ -17,7 +17,15 @@ export interface BlurCheckResult {
 }
 
 const MIN_DIMENSION = 500; // below this on the shorter side, flag as low-res regardless of compression
-const BYTES_PER_PIXEL_THRESHOLD = 0.12; // below this, flag as possibly blurry/low-detail
+// Bug: 0.12 bytes/pixel flagged a large share of genuinely sharp,
+// well-lit photos — anything with a plain background or solid-color
+// garment (which is most flat-lay/product-style closet photos)
+// compresses well regardless of focus or lighting, so this fired far
+// too often and the "better light" message stopped meaning anything.
+// Lowered to only catch photos that are compressing dramatically well
+// (the hallmark of a genuinely blank/near-blank or heavily blurred
+// frame), not merely simple ones.
+const BYTES_PER_PIXEL_THRESHOLD = 0.045;
 
 export async function checkPhotoBlur(uri: string, width?: number, height?: number): Promise<BlurCheckResult> {
   try {

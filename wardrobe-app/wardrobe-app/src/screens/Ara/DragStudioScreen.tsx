@@ -60,7 +60,7 @@ export default function DragStudioScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader />
       <Text style={styles.title}>AI Drag Studio</Text>
       <Text style={styles.subtitle}>Tap a slot, swap in whatever you like</Text>

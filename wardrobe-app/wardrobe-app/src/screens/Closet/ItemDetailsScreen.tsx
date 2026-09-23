@@ -149,7 +149,7 @@ export default function ItemDetailsScreen() {
 
   if (editing) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <ScreenHeader title="Edit details" onBack={() => setEditing(false)} />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: spacing.lg }} keyboardShouldPersistTaps="handled">
@@ -190,7 +190,7 @@ export default function ItemDetailsScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader />
       <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
         <View style={styles.imageWrap}>

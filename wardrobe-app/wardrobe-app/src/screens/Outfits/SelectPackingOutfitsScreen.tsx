@@ -115,7 +115,7 @@ export default function SelectPackingOutfitsScreen() {
     : outfits;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader title="Select outfit" />
 
       {weatherLoading ? (

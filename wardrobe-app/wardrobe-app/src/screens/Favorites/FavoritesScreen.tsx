@@ -19,7 +19,7 @@ export default function FavoritesScreen() {
   useFocusEffect(useCallback(() => { getFavoriteItems().then(setItems).catch(() => {}); }, []));
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader title="Favorites" />
       <FlatList
         style={{ flex: 1 }}

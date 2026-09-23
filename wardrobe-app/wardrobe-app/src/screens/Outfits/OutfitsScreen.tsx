@@ -164,7 +164,7 @@ export default function OutfitsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <AppHeader />
       <View style={styles.header}>
         <Text style={styles.title}>My Outfits</Text>
@@ -250,7 +250,16 @@ export default function OutfitsScreen() {
           // frame). Left in the overlapping pile, that opaque photo
           // hides whatever's stacked underneath it — only genuinely
           // processed items go into the collage here.
-          const shown = pieces.filter((p: any) => p.backgroundRemoval?.status === 'done').slice(0, 4);
+          const ready = pieces.filter((p: any) => p.backgroundRemoval?.status === 'done').slice(0, 4);
+          // Bug: while background removal is still pending (or has
+          // failed) for every piece, this fell all the way to an empty
+          // "?" placeholder card — even though real photos of the
+          // outfit exist, just not cut out yet. Fall back to the raw
+          // photos so the card always shows an actual picture of the
+          // outfit; it upgrades to the clean layered collage on its
+          // own once processing finishes.
+          const shown = ready.length > 0 ? ready : pieces.slice(0, 4);
+          const usingRawFallback = ready.length === 0 && pieces.length > 0;
           const isRecent = item.createdAt && (Date.now() - item.createdAt) < 48 * 60 * 60 * 1000;
           return (
             <View style={styles.card}>
@@ -292,7 +301,17 @@ export default function OutfitsScreen() {
                 onPress={() => navigation.navigate('OutfitDetail', { outfitId: item.id })}
                 activeOpacity={0.85}
               >
-                {shown.length > 1 ? (
+                {usingRawFallback ? (
+                  // Raw photos still have their own background, so lay
+                  // them out as a plain bordered grid rather than the
+                  // seamless overlapping collage (that only looks right
+                  // once backgrounds are actually transparent).
+                  <View style={styles.rawFallbackGrid}>
+                    {shown.map((p: any, idx: number) => (
+                      <View key={p.id ?? idx} style={styles.rawFallbackThumb}><ItemThumb item={p} size={64} /></View>
+                    ))}
+                  </View>
+                ) : shown.length > 1 ? (
                   collageLayout(shown).map((pos, idx) => (
                     <View key={idx} style={[styles.collagePiece, { top: pos.top, left: pos.left }]}>
                       <ItemThumb item={shown[idx]} size={pos.thumbSize} noBorder />
@@ -375,7 +394,7 @@ function makeStyles(colors: any, type: any) {
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: spacing.lg, paddingTop: spacing.sm, rowGap: spacing.sm,
+    paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md, rowGap: spacing.sm,
   },
   title: { ...type.h1 },
   filterButton: { backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, width: 34, height: 34, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
@@ -404,7 +423,7 @@ function makeStyles(colors: any, type: any) {
     marginHorizontal: spacing.lg, backgroundColor: colors.bgSoft, borderRadius: radius.pill,
     borderWidth: 1, borderColor: colors.border, overflow: 'hidden',
   },
-  sectionLabel: { fontSize: 12, fontWeight: '700', color: colors.inkMuted, paddingHorizontal: spacing.lg, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3 },
+  sectionLabel: { fontSize: 12, fontWeight: '700', color: colors.inkMuted, paddingHorizontal: spacing.lg, marginTop: spacing.xs, marginBottom: spacing.sm, textTransform: 'uppercase', letterSpacing: 0.3 },
   tabRow: { paddingHorizontal: 6, paddingVertical: 6, gap: spacing.xs, alignItems: 'center' },
   tab: { paddingVertical: 5, paddingHorizontal: spacing.sm, borderRadius: radius.pill, backgroundColor: 'transparent', marginRight: 2 },
   tabActive: { backgroundColor: colors.black },
@@ -427,6 +446,8 @@ function makeStyles(colors: any, type: any) {
   },
   shareButtonText: { color: colors.white, fontSize: 14, fontWeight: '700', lineHeight: 15 },
   collageWrap: { width: 150, height: 150 * 1.25, position: 'relative', overflow: 'hidden', borderRadius: radius.md },
+  rawFallbackGrid: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 4, padding: 6 },
+  rawFallbackThumb: {},
   collagePiece: { position: 'absolute' },
   nameRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: spacing.xs, gap: 4 },
   outfitName: { ...type.h3, maxWidth: 118 },

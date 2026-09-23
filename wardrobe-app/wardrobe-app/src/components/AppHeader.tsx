@@ -22,7 +22,7 @@ const MENU_ITEMS = [
   { label: 'Chat', icon: 'chatbubble-outline', tab: 'ChatTab' },
 ];
 
-export function AppHeader() {
+export function AppHeader({ hasNotifications = false }: { hasNotifications?: boolean }) {
   const navigation = useNavigation<any>();
   const { colors, type } = useAppTheme();
   const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
@@ -35,7 +35,7 @@ export function AppHeader() {
       </View>
       <View style={styles.actions}>
         <TouchableOpacity style={styles.iconButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Notifications">
-          <BellIcon />
+          <BellIcon hasNotifications={hasNotifications} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.iconButton} onPress={() => setMenuOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Menu">
           <MenuIcon />

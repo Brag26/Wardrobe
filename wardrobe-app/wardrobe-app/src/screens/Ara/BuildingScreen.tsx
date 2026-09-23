@@ -132,11 +132,11 @@ export default function BuildingScreen() {
             </View>
           ) : null}
 
-          <Button label="Save to closet" onPress={() => navigation.navigate('HomeTab')} />
+          <Button label="Save to closet" onPress={() => navigation.navigate('HomeTab')} dark />
           <View style={{ height: spacing.sm }} />
-          <Button label="See more options" onPress={() => navigation.navigate('Discover', { occasion, mood })} variant="secondary" />
+          <Button label="See more options" onPress={() => navigation.navigate('Discover', { occasion, mood })} variant="secondary" dark />
           <View style={{ height: spacing.sm }} />
-          <Button label="Try a different mood" onPress={() => navigation.goBack()} variant="outline" />
+          <Button label="Try a different mood" onPress={() => navigation.goBack()} variant="outline" dark />
         </ScrollView>
       </SafeAreaView>
     </View>

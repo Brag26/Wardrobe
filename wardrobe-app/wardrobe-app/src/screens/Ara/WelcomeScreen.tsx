@@ -18,7 +18,7 @@ export default function WelcomeScreen() {
   useEffect(() => { getClosetOverview().then((o) => setItemCount(o.totalItems)).catch(() => {}); }, []);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <AppHeader />
       <View style={styles.center}>
         <AraMascot size={210} />

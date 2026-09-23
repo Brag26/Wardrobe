@@ -101,7 +101,7 @@ export default function PackingDetailScreen() {
 
   if (editing) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <ScreenHeader title="Edit trip" onBack={() => setEditing(false)} />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: spacing.lg }} keyboardShouldPersistTaps="handled">
@@ -134,7 +134,7 @@ export default function PackingDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader title={packing.name ?? 'Packing'} />
       <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
         <TouchableOpacity onPress={startEditing} activeOpacity={0.85}>

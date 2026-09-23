@@ -53,7 +53,7 @@ export default function ColorAnalysisScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader title="Color Analysis" />
       <Text style={styles.subtitle}>
         Upload a clear, well-lit selfie — Ara reads your undertone and suggests colors that'll actually work for you, and starts weighing them into outfit picks automatically.

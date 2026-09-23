@@ -124,7 +124,7 @@ export default function BulkUploadScreen() {
 
   if (step === 'done') {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.doneWrap}>
           <Ionicons name="checkmark-circle" size={56} color={colors.success ?? '#3B8352'} />
           <Text style={[type.h2, { marginTop: spacing.md }]}>Successfully added</Text>
@@ -140,7 +140,7 @@ export default function BulkUploadScreen() {
 
   if (step === 'picking') {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <ScreenHeader title="Bulk upload" />
         <FlatList
           data={photos}
@@ -193,7 +193,7 @@ export default function BulkUploadScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader title="Add details" onBack={() => setStep('picking')} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ padding: spacing.lg }} keyboardShouldPersistTaps="handled">

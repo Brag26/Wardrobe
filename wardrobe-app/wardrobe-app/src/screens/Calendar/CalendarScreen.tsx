@@ -91,7 +91,7 @@ export default function CalendarScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader title="Calendar" />
       <Text style={[type.muted, { paddingHorizontal: spacing.lg, marginBottom: spacing.sm }]}>
         Tap any date to log or plan your outfit for that day.

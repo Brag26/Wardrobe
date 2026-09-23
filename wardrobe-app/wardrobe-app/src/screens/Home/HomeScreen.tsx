@@ -87,7 +87,7 @@ export default function HomeScreen() {
   const fabActions = [
     { label: 'Add items', icon: 'shirt-outline' as const, onPress: () => navigation.navigate('ClosetTab', { screen: 'AddItem' }) },
     { label: 'Add outfit', icon: 'sparkles-outline' as const, onPress: () => navigation.navigate('OutfitsTab', { screen: 'CreateOutfit' }) },
-    { label: 'Schedule outfit', icon: 'calendar-outline' as const, onPress: () => navigation.navigate('CalendarStack') },
+    { label: 'Schedule outfit', icon: 'calendar-outline' as const, onPress: () => navigation.navigate('JournalTab') },
     { label: 'Plan trip outfits', icon: 'briefcase-outline' as const, onPress: () => navigation.navigate('OutfitsTab', { screen: 'StartPacking' }) },
   ];
 
@@ -189,15 +189,15 @@ export default function HomeScreen() {
       >
         <AppHeader />
         <View style={styles.topRow}>
-          <Text style={styles.greeting}>Good morning</Text>
+          <Text style={styles.greeting}>Wardrobe</Text>
           <View style={styles.darkModeRow}>
-            <TouchableOpacity style={styles.profileButton} onPress={() => navigation.navigate('CalendarStack')} accessibilityLabel="Outfit calendar">
+            <TouchableOpacity style={styles.profileButton} onPress={() => navigation.navigate('JournalTab')} accessibilityLabel="Outfit calendar">
               <CalendarIcon />
             </TouchableOpacity>
             <TouchableOpacity style={styles.profileButton} onPress={() => navigation.navigate('ChatTab')} accessibilityLabel="Chat with Ara">
               <ChatIcon />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.profileButton} onPress={() => navigation.navigate('Profile', { screen: 'StyleProfileHub' })} accessibilityLabel="Style profile">
+            <TouchableOpacity style={styles.profileButton} onPress={() => navigation.navigate('MeTab')} accessibilityLabel="Style profile">
               <ProfileIcon />
             </TouchableOpacity>
           </View>
@@ -509,7 +509,9 @@ function makeStyles(colors: any, type: any) {
     // top of it.
     scroll: { paddingBottom: 280 },
     topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-    greeting: { ...type.h1 },
+    // Small, quiet label rather than a big "Good morning" — this is the
+    // Fits home screen's own name, not a greeting banner.
+    greeting: { fontSize: 13, fontWeight: '600', color: colors.inkMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
     darkModeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     profileButton: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginLeft: 2 },
     menuBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'flex-end' },
@@ -607,13 +609,21 @@ function makeStyles(colors: any, type: any) {
     // Figma: 70px circle, 20px from the right edge, 30px above the bottom nav
     // (the SVG has a 75x75 box around the 70px circle).
     fabWrap: { position: 'absolute', bottom: 30, right: 19.5, alignItems: 'flex-end' },
+    // Bug: this row auto-sized to its label's text width, so a short
+    // label ("Add items") and a long one ("Plan trip outfits") ended
+    // with their icon circles at different, drifting x positions —
+    // exactly the "aligned to the words, not the icon" look. Giving the
+    // row a fixed width and right-justifying its content pins the icon
+    // to the same spot for every action; only the label's left edge
+    // moves, which is how it should read either way.
     fabAction: {
-      position: 'absolute', bottom: 15.5, right: 15.5, flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+      position: 'absolute', bottom: 15.5, right: 15.5, width: 210,
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: spacing.sm,
     },
     fabActionLabel: {
       backgroundColor: colors.card ?? colors.bgSoft, color: colors.ink, fontSize: 12, fontWeight: '600',
       paddingVertical: 6, paddingHorizontal: spacing.sm, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border,
-      overflow: 'hidden',
+      overflow: 'hidden', flexShrink: 1,
     },
     fabActionButton: {
       width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border,

@@ -14,7 +14,7 @@ export default function StyleProfileHubScreen() {
   const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader title="Style Profile" />
       <Text style={styles.subtitle}>The more Ara knows, the better she picks for you.</Text>
 

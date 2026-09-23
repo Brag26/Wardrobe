@@ -165,7 +165,7 @@ export default function ChatScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <AppHeader />
       <View style={styles.header}>
         <View style={styles.headerTitleRow}>
@@ -185,15 +185,17 @@ export default function ChatScreen() {
         </View>
       </View>
 
-      {/* Bug fix: this previously set behavior={undefined} on Android
-          ("iOS ? 'padding' : undefined"), which makes KeyboardAvoidingView
-          a complete no-op — it only ever worked on iOS. That's why this
-          screen specifically kept failing even after every other screen
-          got the same-looking fix applied. Also widened to wrap the
-          message log + suggestion pills too, not just the input row —
-          wrapping only the input row isn't enough for it to know how
-          much to shift by. */}
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
+      {/* Bug fix, round 2: giving Android its own KeyboardAvoidingView
+          "height" behavior turned out to be one fix too many. Expo
+          already resizes the window natively on Android (adjustResize)
+          when the keyboard opens, so layering "height" behavior on top
+          of that had the two compensating for the keyboard at once —
+          sometimes cancelling out (input visible), sometimes stacking
+          (input pushed too far, or the pad appearing to not show at
+          all because the input row was shoved off-screen). Android now
+          leaves it to the OS's native resize alone; only iOS, which
+          doesn't resize the window on its own, still needs "padding". */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
         <ScrollView ref={scrollRef} style={styles.log} contentContainerStyle={{ padding: spacing.md }}>
           {messages.length === 0 && !sending && (
             <View style={styles.assistantRow}>

@@ -15,6 +15,15 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { FigmaIcon } from '../../components/icons/FigmaIcon';
 import { Chip } from '../../components/Chip';
+
+// Same idea as Ara's occasion picker (OccasionScreen) — Chip renders a
+// blank colored circle when it has no emoji to show, which is exactly
+// what these looked like (peach circles, no icon). One emoji per
+// outfit category so they read the same way Ara's do.
+const CATEGORY_EMOJI: Record<string, string> = {
+  casual: '👕', formal: '🎩', business: '💼',
+  evening_wear: '✨', sport: '🏃', party_wear: '🎉',
+};
 import { TagPill } from '../../components/TagPill';
 import { ItemThumb } from '../../components/ItemThumb';
 import { ScreenHeader } from '../../components/ScreenHeader';
@@ -139,7 +148,7 @@ export default function CreateOutfitScreen() {
   if (!loaded) return <SafeAreaView style={styles.container} />;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: spacing.lg }} keyboardShouldPersistTaps="handled">
@@ -165,7 +174,7 @@ export default function CreateOutfitScreen() {
 
         <Text style={styles.sectionLabel}>Category</Text>
         <View style={styles.chipRow}>
-          {categories.map((c) => <Chip key={c} label={c.replace('_', ' ')} selected={category === c} onPress={() => setCategory(c)} />)}
+          {categories.map((c) => <Chip key={c} label={c.replace(/_/g, ' ')} emoji={CATEGORY_EMOJI[c]} selected={category === c} onPress={() => setCategory(c)} />)}
         </View>
 
         {/* Aesthetic/vibe tag — separate from Category on purpose: this

@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FigmaIcon } from '../../components/icons/FigmaIcon';
 import { getWardrobeItems, setItemFavorite, getClosetOverview, getAttributeSuggestions } from '../../api/wardrobeApi';
 import { ItemThumb } from '../../components/ItemThumb';
+import { FabMenu } from '../../components/FabMenu';
 import { FilterPanel, FilterValues } from '../../components/FilterPanel';
 import { AppHeader } from '../../components/AppHeader';
 import { spacing, radius } from '../../theme/theme';
@@ -99,7 +100,7 @@ export default function ClosetScreen() {
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <AppHeader />
       <View style={styles.header}>
         <Text style={styles.title}>Closet</Text>
@@ -189,10 +190,15 @@ export default function ClosetScreen() {
         )}
       />
 
-      <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('AddItem')}>
-        <FigmaIcon name="add" size={16} color={colors.white} />
-        <Text style={styles.addButtonText}>Add items</Text>
-      </TouchableOpacity>
+      {/* Was a single "Add items" bar — bulk upload existed but was
+          buried two taps deep inside that flow. A small menu here
+          surfaces both without adding a new screen. */}
+      <FabMenu
+        actions={[
+          { label: 'Add items', icon: 'shirt-outline', onPress: () => navigation.navigate('AddItem') },
+          { label: 'Bulk upload', icon: 'images-outline', onPress: () => navigation.navigate('BulkUpload') },
+        ]}
+      />
 
       <FilterPanel
         visible={filterPanelOpen}

@@ -42,7 +42,7 @@ export default function BodyShapeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader title="Body Shape" />
       <Text style={styles.subtitle}>
         This helps Ara pick silhouettes that actually work for you — you know your body better than a photo guess ever could.

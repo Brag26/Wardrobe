@@ -27,7 +27,7 @@ export default function MoodScreen() {
   const pastels = [colors.pink, colors.lavender, colors.peach, colors.mint, colors.sky];
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader />
       <View style={styles.textBlock}>
         <Text style={type.h1}>How do you want to feel?</Text>

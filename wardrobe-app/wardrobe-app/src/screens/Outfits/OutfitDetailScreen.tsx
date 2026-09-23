@@ -102,7 +102,7 @@ export default function OutfitDetailScreen() {
 
   if (!outfitId) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <ScreenHeader title="Outfit" />
         <Text style={{ padding: spacing.lg, color: colors.inkMuted }}>Couldn't find that outfit.</Text>
       </SafeAreaView>
@@ -115,7 +115,7 @@ export default function OutfitDetailScreen() {
     // actually worse than that, completely blank with no feedback at
     // all. Real spinner plus the requested copy now.
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <ScreenHeader title="Outfit" />
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={colors.inkMuted} />
@@ -139,9 +139,17 @@ export default function OutfitDetailScreen() {
   const collageReady = items.filter((i) => i.backgroundRemoval?.status === 'done');
   const notReady = items.filter((i) => i.backgroundRemoval?.status !== 'done');
   const positions = collageReady.length > 1 ? collageLayout(collageReady, 2) : [];
+  // Bug: with nothing background-removed yet, this showed a permanent
+  // "Please wait, while we reveal your outfit" spinner even though the
+  // raw photos are already sitting right there in `items` — a real
+  // picture of the outfit, just not cut out yet. Fall back to a plain
+  // bordered grid of the raw photos instead of only a spinner; the
+  // 4-second poll above already upgrades this to the seamless collage
+  // the moment background removal finishes.
+  const showRawFallback = collageReady.length === 0 && items.length > 0;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader title={outfit.name ?? 'Outfit'} />
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }}>
         <View style={styles.displayWrap}>
@@ -153,6 +161,12 @@ export default function OutfitDetailScreen() {
             ))
           ) : collageReady.length === 1 ? (
             <ItemThumb item={collageReady[0]} size={300} noBorder />
+          ) : showRawFallback ? (
+            <View style={styles.rawFallbackGrid}>
+              {items.slice(0, 6).map((it, idx) => (
+                <View key={it.id ?? idx} style={styles.rawFallbackThumb}><ItemThumb item={it} size={84} /></View>
+              ))}
+            </View>
           ) : (
             <View style={styles.processingWrap}>
               <ActivityIndicator size="small" color={colors.inkMuted} />
@@ -161,7 +175,9 @@ export default function OutfitDetailScreen() {
           )}
         </View>
 
-        {notReady.length > 0 && (
+        {/* Skip this when the raw-photo fallback above is already showing
+            every one of these same items — no point listing them twice. */}
+        {notReady.length > 0 && !showRawFallback && (
           <View style={styles.notReadySection}>
             <Text style={styles.notReadyLabel}>
               {notReady.length} more piece{notReady.length === 1 ? '' : 's'} — photo still processing
@@ -218,6 +234,8 @@ function makeStyles(colors: any, type: any) {
     collagePiece: { position: 'absolute' },
     processingText: { color: colors.inkMuted, fontSize: 13, marginTop: spacing.sm, textAlign: 'center' },
     processingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
+    rawFallbackGrid: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, padding: spacing.md },
+    rawFallbackThumb: {},
     loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingHorizontal: spacing.xl },
     loadingText: { color: colors.inkMuted, fontSize: 13, textAlign: 'center' },
     notReadySection: { paddingHorizontal: spacing.lg, marginTop: spacing.md, alignItems: 'center' },

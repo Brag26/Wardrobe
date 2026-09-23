@@ -53,7 +53,7 @@ export default function ReorderItemsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader title="Reorder items" />
       <Text style={styles.subtitle}>Use the arrows to move items — this order sets what shows first in your closet.</Text>
       <FlatList

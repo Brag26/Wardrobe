@@ -67,7 +67,7 @@ export default function DiscoverScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader />
       <Text style={styles.title}>Discover your next{'\n'}perfect look</Text>
 

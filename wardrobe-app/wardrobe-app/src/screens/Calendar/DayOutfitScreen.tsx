@@ -82,7 +82,7 @@ export default function DayOutfitScreen() {
 
   if (wrapped) {
     return (
-      <SafeAreaView style={styles.wrapContainer} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.wrapContainer} edges={['top']}>
         <View style={styles.wrapCenter}>
           <Ionicons name="checkmark-circle" size={56} color="#8FE3AE" />
           <Text style={styles.wrapTitle}>Successfully Wrapped</Text>
@@ -100,7 +100,7 @@ export default function DayOutfitScreen() {
 
   if (entry && assignedOutfit) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <ScreenHeader title={formatDate(date)} />
         <View style={styles.assignedWrap}>
           <ItemThumb item={preview} size={180} />
@@ -116,7 +116,7 @@ export default function DayOutfitScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader title={formatDate(date)} />
       <Text style={[type.muted, { paddingHorizontal: spacing.lg, marginBottom: spacing.sm }]}>Pick an outfit for this day.</Text>
       <FlatList
