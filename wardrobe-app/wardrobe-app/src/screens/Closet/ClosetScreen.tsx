@@ -8,7 +8,7 @@ import { ItemThumb } from '../../components/ItemThumb';
 import { FabMenu } from '../../components/FabMenu';
 import { BuildWardrobeIllustration } from '../../components/illustrations/EmptyStateIllustrations';
 import { FilterPanel, FilterValues } from '../../components/FilterPanel';
-import { PageHeader } from '../../components/PageHeader';
+import { PageHeader, PAGE_TITLE_LEFT } from '../../components/PageHeader';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { AppIcon } from '../../components/icons/AppIcons';
@@ -34,7 +34,10 @@ export default function ClosetScreen() {
   // the 24px side padding on each side and the 8px gap, split in two), so the
   // heart lands on the photo's top-right corner.
   const { width: screenWidth } = useWindowDimensions();
-  const cardWidth = Math.floor((screenWidth - spacing.lg * 2 - spacing.sm) / 2);
+  // Left/right padding on the grid are no longer equal (see
+  // PAGE_TITLE_LEFT), so this has to account for each side separately
+  // rather than assuming spacing.lg on both.
+  const cardWidth = Math.floor((screenWidth - PAGE_TITLE_LEFT - spacing.lg - spacing.sm) / 2);
 
   const [items, setItems] = useState<any[]>([]);
   const [category, setCategory] = useState(route.params?.initialCategory ?? 'All');
@@ -110,9 +113,6 @@ export default function ClosetScreen() {
             <FigmaIcon name="filter" size={16} color={colors.ink} />
             {activeFilterCount > 0 && <View style={styles.filterBadge}><Text style={styles.filterBadgeText}>{activeFilterCount}</Text></View>}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('ReorderItems')}>
-            <AppIcon name="swapVertical" size={16} color={colors.ink} />
-          </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Archive')}>
             <AppIcon name="fileTray" size={16} color={colors.ink} />
           </TouchableOpacity>
@@ -162,7 +162,7 @@ export default function ClosetScreen() {
         keyExtractor={(i) => i.id}
         numColumns={2}
         style={{ flex: 1 }}
-        columnWrapperStyle={{ gap: spacing.sm, paddingHorizontal: spacing.lg }}
+        columnWrapperStyle={{ gap: spacing.sm, paddingLeft: PAGE_TITLE_LEFT, paddingRight: spacing.lg }}
         contentContainerStyle={{ gap: spacing.sm, paddingBottom: 90 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
@@ -183,9 +183,20 @@ export default function ClosetScreen() {
               <ItemThumb item={item} size={cardWidth} />
               <TouchableOpacity
                 style={styles.favButton}
-                onPress={() => { setItemFavorite(item.id, !item.isFavorite); load(category, filters, searchText); }}
+                onPress={() => {
+                  // Bug: this waited on setItemFavorite's network call,
+                  // then re-fetched and replaced the entire list before
+                  // the heart updated — a real 1-2s lag on every tap.
+                  // Flip it in the list immediately; the API call still
+                  // happens, just without blocking what you see.
+                  setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, isFavorite: !item.isFavorite } : i)));
+                  setItemFavorite(item.id, !item.isFavorite).catch(() => {
+                    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, isFavorite: item.isFavorite } : i)));
+                  });
+                }}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
-                <FigmaIcon name={item.isFavorite ? 'heart' : 'heartOutline'} size={16} color={colors.inkMuted} />
+                <FigmaIcon name={item.isFavorite ? 'heart' : 'heartOutline'} size={15} color={item.isFavorite ? colors.heart : colors.ink} />
               </TouchableOpacity>
             </View>
             <Text style={styles.itemName} numberOfLines={1}>{item.color} {item.category}</Text>
@@ -232,7 +243,7 @@ function makeStyles(colors: any, type: any) {
     // so the last chip can always be scrolled fully into view on Android.
     tabList: {
       flexGrow: 0, maxHeight: 52, marginBottom: spacing.sm,
-      marginHorizontal: spacing.lg, backgroundColor: colors.bgSoft, borderRadius: radius.pill,
+      marginLeft: PAGE_TITLE_LEFT, marginRight: spacing.lg, backgroundColor: colors.bgSoft, borderRadius: radius.pill,
       borderWidth: 1, borderColor: colors.border, overflow: 'hidden',
     },
     // Wrapped in a capsule/track background (segmented-control look)
@@ -240,12 +251,17 @@ function makeStyles(colors: any, type: any) {
     // scatter of floating pills — plus a small label above it, since
     // previously there was no header at all indicating what this row
     // of tabs was for.
+    // Bug: this started at the screen's plain 24px edge like the header
+    // icon row, but the page TITLE above it starts further right (past
+    // the back button) — so everything below the title read as
+    // misaligned with it. Left edge now matches the title's actual
+    // position; right edge is unchanged.
     searchBar: {
       flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border,
-      borderRadius: radius.pill, marginHorizontal: spacing.lg, marginBottom: spacing.md, paddingHorizontal: spacing.md, height: 42,
+      borderRadius: radius.pill, marginLeft: PAGE_TITLE_LEFT, marginRight: spacing.lg, marginBottom: spacing.md, paddingHorizontal: spacing.md, height: 42,
     },
     searchInput: { flex: 1, fontSize: 14, color: colors.ink, paddingVertical: 0 },
-    sectionLabel: { fontSize: 12, fontWeight: '700', color: colors.inkMuted, paddingHorizontal: spacing.lg, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3 },
+    sectionLabel: { fontSize: 12, fontWeight: '700', color: colors.inkMuted, paddingLeft: PAGE_TITLE_LEFT, paddingRight: spacing.lg, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3 },
     tabRow: { paddingHorizontal: 6, paddingVertical: 6, gap: spacing.xs, alignItems: 'center' },
     tab: { paddingVertical: 5, paddingHorizontal: spacing.sm, borderRadius: radius.pill, backgroundColor: 'transparent', marginRight: 2 },
     tabActive: { backgroundColor: colors.card ?? colors.bg, borderWidth: 1, borderColor: colors.lavenderDeep },
@@ -253,9 +269,17 @@ function makeStyles(colors: any, type: any) {
     tabTextActive: { fontWeight: '700' },
     card: {},
     thumbWrap: { position: 'relative', width: '100%' },
+    // Bug: a 90%-opaque white circle on top of a real photo still let
+    // the photo's own colors/edges show faintly through it, and the
+    // heart itself was the same flat grey whether favorited or not —
+    // together that's why it read as "coming out of the image" rather
+    // than sitting cleanly on top. Fully opaque now, with a real drop
+    // shadow to lift it off the photo, and the heart itself switches
+    // to a solid pink when favorited instead of staying grey.
     favButton: {
-      position: 'absolute', top: spacing.xs, right: spacing.xs, width: 28, height: 28, borderRadius: 14,
-      backgroundColor: 'rgba(255,255,255,0.9)', alignItems: 'center', justifyContent: 'center',
+      position: 'absolute', top: spacing.xs, right: spacing.xs, width: 26, height: 26, borderRadius: 13,
+      backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
+      shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.18, shadowRadius: 3, elevation: 3,
     },
     itemName: { fontSize: 12, fontWeight: '600', color: colors.ink, marginTop: spacing.xs, textTransform: 'capitalize' },
     itemBrand: { fontSize: 10, color: colors.inkMuted },

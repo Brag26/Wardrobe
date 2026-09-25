@@ -8,7 +8,7 @@ import { collageLayout } from '../../utils/outfitCollage';
 import { CreateOutfitIllustration } from '../../components/illustrations/EmptyStateIllustrations';
 import { ItemThumb } from '../../components/ItemThumb';
 import { FilterPanel, FilterValues } from '../../components/FilterPanel';
-import { PageHeader } from '../../components/PageHeader';
+import { PageHeader, PAGE_TITLE_LEFT } from '../../components/PageHeader';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { AppIcon } from '../../components/icons/AppIcons';
@@ -204,7 +204,7 @@ export default function OutfitsScreen() {
         keyExtractor={(o) => o.id}
         numColumns={2}
         style={{ flex: 1 }}
-        columnWrapperStyle={{ gap: spacing.sm, paddingHorizontal: spacing.lg }}
+        columnWrapperStyle={{ gap: spacing.sm, paddingLeft: PAGE_TITLE_LEFT, paddingRight: spacing.lg }}
         contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.lg }}
         ListEmptyComponent={
           outfitsLoading && !hasLoadedOnce ? (
@@ -218,33 +218,46 @@ export default function OutfitsScreen() {
             </View>
           )
         }
-        ListHeaderComponent={packings.length > 0 ? (
-          <View style={{ marginBottom: spacing.md }}>
-            <View style={styles.packingHeaderRow}>
-              <Text style={styles.packingSectionTitle}>My packing</Text>
-              <Text style={styles.packingViewAll} onPress={() => {}}>{packings.length} trip{packings.length === 1 ? '' : 's'}</Text>
-            </View>
-            <FlatList
-              horizontal
-              data={packings}
-              keyExtractor={(p) => p.id}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}
-              renderItem={({ item: p }) => (
-                <TouchableOpacity style={styles.packingCard} onPress={() => navigation.navigate('PackingDetail', { packingId: p.id })} activeOpacity={0.85}>
-                  {p.coverImageUrl ? (
-                    <View style={styles.packingCoverWrap}><ItemThumb item={{ imageUrl: p.coverImageUrl, category: 'trip', color: '' }} size={116} /></View>
-                  ) : (
-                    <View style={[styles.packingCoverWrap, styles.packingCoverPlaceholder]}><AppIcon name="briefcase" size={28} color={colors.inkMuted} /></View>
+        ListHeaderComponent={
+          <View>
+            {/* Bug: there was no count anywhere on this page, unlike
+                "My packing" below which always shows "N trips". Same
+                treatment here, right above the outfit grid. */}
+            {outfits.length > 0 ? (
+              <View style={[styles.packingHeaderRow, { marginBottom: spacing.md }]}>
+                <Text style={styles.packingSectionTitle}>My Outfits</Text>
+                <Text style={styles.packingViewAll}>{outfits.length} outfit{outfits.length === 1 ? '' : 's'}</Text>
+              </View>
+            ) : null}
+            {packings.length > 0 ? (
+              <View style={{ marginBottom: spacing.md }}>
+                <View style={styles.packingHeaderRow}>
+                  <Text style={styles.packingSectionTitle}>My packing</Text>
+                  <Text style={styles.packingViewAll}>{packings.length} trip{packings.length === 1 ? '' : 's'}</Text>
+                </View>
+                <FlatList
+                  horizontal
+                  data={packings}
+                  keyExtractor={(p) => p.id}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}
+                  renderItem={({ item: p }) => (
+                    <TouchableOpacity style={styles.packingCard} onPress={() => navigation.navigate('PackingDetail', { packingId: p.id })} activeOpacity={0.85}>
+                      {p.coverImageUrl ? (
+                        <View style={styles.packingCoverWrap}><ItemThumb item={{ imageUrl: p.coverImageUrl, category: 'trip', color: '' }} size={116} /></View>
+                      ) : (
+                        <View style={[styles.packingCoverWrap, styles.packingCoverPlaceholder]}><AppIcon name="briefcase" size={28} color={colors.inkMuted} /></View>
+                      )}
+                      <Text style={styles.packingCardName} numberOfLines={1}>{p.name ?? 'Untitled trip'}</Text>
+                      {(p.startDate || p.endDate) && <Text style={styles.packingCardDates}>{p.startDate ?? '?'} - {p.endDate ?? '?'}</Text>}
+                      <Text style={styles.packingCardCount}>{p.outfitIds?.length ?? 0} outfit{(p.outfitIds?.length ?? 0) === 1 ? '' : 's'} packing</Text>
+                    </TouchableOpacity>
                   )}
-                  <Text style={styles.packingCardName} numberOfLines={1}>{p.name ?? 'Untitled trip'}</Text>
-                  {(p.startDate || p.endDate) && <Text style={styles.packingCardDates}>{p.startDate ?? '?'} - {p.endDate ?? '?'}</Text>}
-                  <Text style={styles.packingCardCount}>{p.outfitIds?.length ?? 0} outfit{(p.outfitIds?.length ?? 0) === 1 ? '' : 's'} packing</Text>
-                </TouchableOpacity>
-              )}
-            />
+                />
+              </View>
+            ) : null}
           </View>
-        ) : null}
+        }
         renderItem={({ item }) => {
           const pieces = (item.itemIds ?? []).map((id: string) => previews[id]).filter(Boolean);
           // Same fix as OutfitDetailScreen — an item whose background
@@ -404,7 +417,7 @@ function makeStyles(colors: any, type: any) {
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md, rowGap: spacing.sm,
+    paddingLeft: PAGE_TITLE_LEFT, paddingRight: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md, rowGap: spacing.sm,
   },
   title: { ...type.h1 },
   filterButton: { backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, width: 34, height: 34, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
@@ -413,7 +426,10 @@ function makeStyles(colors: any, type: any) {
   packButtonText: { fontWeight: '600', fontSize: 12, color: colors.ink },
   addButton: { backgroundColor: colors.black, borderRadius: radius.pill, paddingVertical: 8, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center' },
   addButtonText: { color: colors.white, fontWeight: '600', fontSize: 12 },
-  packingHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
+  // Bug: same left/right padding as the plain screen edge, while the
+  // page title above starts further right (past the back button) —
+  // left edge now matches the title instead of sitting to its left.
+  packingHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingLeft: PAGE_TITLE_LEFT, paddingRight: spacing.lg, marginBottom: spacing.sm },
   packingSectionTitle: { ...type.h3 },
   packingViewAll: { fontSize: 12, color: colors.inkMuted },
   packingCard: { width: 130, backgroundColor: colors.bgSoft, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.sm },
@@ -430,10 +446,10 @@ function makeStyles(colors: any, type: any) {
   // list scrolls all the way to the end of the last chip.
   tabList: {
     flexGrow: 0, maxHeight: 52, marginBottom: spacing.sm,
-    marginHorizontal: spacing.lg, backgroundColor: colors.bgSoft, borderRadius: radius.pill,
+    marginLeft: PAGE_TITLE_LEFT, marginRight: spacing.lg, backgroundColor: colors.bgSoft, borderRadius: radius.pill,
     borderWidth: 1, borderColor: colors.border, overflow: 'hidden',
   },
-  sectionLabel: { fontSize: 12, fontWeight: '700', color: colors.inkMuted, paddingHorizontal: spacing.lg, marginTop: spacing.xs, marginBottom: spacing.sm, textTransform: 'uppercase', letterSpacing: 0.3 },
+  sectionLabel: { fontSize: 12, fontWeight: '700', color: colors.inkMuted, paddingLeft: PAGE_TITLE_LEFT, paddingRight: spacing.lg, marginTop: spacing.xs, marginBottom: spacing.sm, textTransform: 'uppercase', letterSpacing: 0.3 },
   tabRow: { paddingHorizontal: 6, paddingVertical: 6, gap: spacing.xs, alignItems: 'center' },
   tab: { paddingVertical: 5, paddingHorizontal: spacing.sm, borderRadius: radius.pill, backgroundColor: 'transparent', marginRight: 2 },
   tabActive: { backgroundColor: colors.black },

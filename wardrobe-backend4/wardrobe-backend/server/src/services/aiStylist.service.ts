@@ -561,10 +561,30 @@ export function wantsOutfitSuggestion(message: string): boolean {
   return /outfit|look|wear|style me|suggest|dress|closet|pick|pack/i.test(message);
 }
 
-export async function generateChatReply(userMessage: string, closet: WardrobeItem[]): Promise<{ text: string; quickReplies: string[]; referencedItemIds: string[] }> {
+export async function generateChatReply(userMessage: string, closet: WardrobeItem[], imageDataUri?: string | null): Promise<{ text: string; quickReplies: string[]; referencedItemIds: string[] }> {
   const sampledItems = sampleClosetForChat(closet);
   const closetSummary = sampledItems.map((i) => `${i.color} ${i.category}`).join(', ') || 'an empty closet so far';
   const wantsSuggestion = wantsOutfitSuggestion(userMessage);
+
+  // Bug: attaching a photo in chat did nothing — the app only sent the
+  // literal text "[+ photo attached]" and never sent the actual image,
+  // so Ara was reacting to a string, not a picture, and always came
+  // back with something like "ooh mysterious, send details" no matter
+  // what was in it. When a real photo comes through now, route to the
+  // same vision-model path Color Analysis and the tag scanner already
+  // use, with a prompt that keeps Ara's actual personality instead of
+  // a flat "describe this image" instruction.
+  if (imageDataUri) {
+    const visionPrompt = `You are Ara, the user's witty, warm, stylish best-friend AI stylist. She just sent you this photo in chat along with this message: "${userMessage || '(no caption, just the photo)'}". Look at the photo and reply like Ara actually would — reference something real and specific you see in it (the item, the color, the styling, the vibe), 1-3 sentences, warm and a little playful, the same voice she always uses. If it's clearly a clothing/outfit photo, react to it as her stylist friend would. Don't describe the image mechanically — talk TO her about it.`;
+    const visionText = await callVisionModel(visionPrompt, imageDataUri, 300);
+    if (visionText) {
+      return { text: visionText, quickReplies: ['Show my outfits', 'What should I wear today?', 'Something else'], referencedItemIds: [] };
+    }
+    // Vision call failed (bad key, provider down, etc.) — fall through
+    // to the normal text reply below rather than leaving the user with
+    // nothing, but at least acknowledge a photo was meant to be there.
+  }
+
   const prompt = wantsSuggestion
     ? `The user's closet includes: ${closetSummary}. User says: "${userMessage}". Reply in 2-3 sentences with a specific, actionable, warm suggestion in Ara's voice — never generic, never robotic, like you actually know her closet.`
     : `The user's closet includes: ${closetSummary}, but they haven't asked for outfit advice right now — they're just talking to you. User says: "${userMessage}". Reply like her actual best friend having a normal conversation: react to what she said, be warm, funny, a little teasing if it fits — 1-3 sentences. Do NOT suggest, describe, or bring up any specific clothing item or outfit unless she's actually asked for one. Just talk to her.`;
@@ -696,21 +716,52 @@ const COLOR_ANALYSIS_FALLBACK: ColorAnalysisResult = {
 };
 
 export async function analyzeColorFromPhoto(imageUrl: string): Promise<ColorAnalysisResult> {
-  const prompt = `Look at this photo and give a skin-tone color analysis for clothing recommendations. Reply with ONLY valid JSON, no other text, in this exact shape:
+  // Bug: the model was free to describe colors however it wanted
+  // ("rust", "warm ivory", "Sage Green"...), but the app can only draw
+  // a swatch for an exact match to one of a fixed set of color words —
+  // anything else silently fell back to a generic grey circle, which
+  // is why every recommended color showed up the same flat grey
+  // instead of the model's actual picks. Constraining the model to
+  // that exact vocabulary (and being explicit that it must be exact,
+  // lowercase, one word) fixes it at the source rather than trying to
+  // guess/fuzzy-match arbitrary color names on the app side.
+  const ALLOWED_COLORS = [
+    'black', 'white', 'cream', 'red', 'pink', 'navy', 'green', 'blue', 'beige', 'grey',
+    'brown', 'burgundy', 'olive', 'orange', 'yellow', 'purple', 'teal', 'gold', 'silver', 'coral',
+  ];
+  const prompt = `Look at this photo and give a skin-tone color analysis for clothing recommendations. You MUST choose colors ONLY from this exact list (lowercase, exactly as written, no other words): ${ALLOWED_COLORS.join(', ')}. Reply with ONLY valid JSON, no other text, in this exact shape:
 {"undertone": "warm|cool|neutral", "recommendedColors": ["color1","color2","color3","color4","color5"], "avoidColors": ["color1","color2"], "explanation": "one warm, friendly sentence explaining why, in a stylist's voice"}`;
 
   const raw = await callVisionModel(prompt, imageUrl, 300);
   if (!raw) return COLOR_ANALYSIS_FALLBACK;
+
+  // Safety net in case the model still drifts from the exact word list
+  // above (extra whitespace, capitalization, "gray" vs "grey", a color
+  // mentioned as part of a longer phrase). Maps back to an allowed
+  // word where there's an obvious match; drops it entirely rather than
+  // keeping something the app can't render as a swatch anyway.
+  const SYNONYMS: Record<string, string> = { gray: 'grey', maroon: 'burgundy', tan: 'beige', ivory: 'cream', mustard: 'yellow', lavender: 'purple', violet: 'purple', turquoise: 'teal' };
+  const normalizeColor = (c: string): string | null => {
+    const cleaned = String(c).trim().toLowerCase();
+    if (ALLOWED_COLORS.includes(cleaned)) return cleaned;
+    if (SYNONYMS[cleaned]) return SYNONYMS[cleaned];
+    const match = ALLOWED_COLORS.find((a) => cleaned.includes(a));
+    return match ?? null;
+  };
 
   try {
     const jsonMatch = raw.match(/\{[\s\S]*\}/); // model may wrap JSON in prose despite instructions
     if (!jsonMatch) return COLOR_ANALYSIS_FALLBACK;
 
     const parsed = JSON.parse(jsonMatch[0]);
+    const recommendedColors = (Array.isArray(parsed.recommendedColors) ? parsed.recommendedColors : COLOR_ANALYSIS_FALLBACK.recommendedColors)
+      .map(normalizeColor).filter((c: string | null): c is string => c !== null);
+    const avoidColors = (Array.isArray(parsed.avoidColors) ? parsed.avoidColors : [])
+      .map(normalizeColor).filter((c: string | null): c is string => c !== null);
     return {
       undertone: parsed.undertone ?? 'unknown',
-      recommendedColors: Array.isArray(parsed.recommendedColors) ? parsed.recommendedColors : COLOR_ANALYSIS_FALLBACK.recommendedColors,
-      avoidColors: Array.isArray(parsed.avoidColors) ? parsed.avoidColors : [],
+      recommendedColors: recommendedColors.length > 0 ? recommendedColors : COLOR_ANALYSIS_FALLBACK.recommendedColors,
+      avoidColors,
       explanation: parsed.explanation ?? COLOR_ANALYSIS_FALLBACK.explanation,
     };
   } catch (err) {

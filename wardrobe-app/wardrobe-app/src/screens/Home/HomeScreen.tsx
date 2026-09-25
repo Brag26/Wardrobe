@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, FlatList, Switch, Animated, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getClosetOverview, getWardrobeItems, listOutfits, setItemFavorite, setOutfitFavorite as apiSetOutfitFavorite, getItemsByIds, getTodayOutfit } from '../../api/wardrobeApi';
 import { useAuthStore } from '../../store/authStore';
@@ -13,6 +13,7 @@ import { CreateOutfitIllustration, BuildWardrobeIllustration } from '../../compo
 import { spacing, radius, cardShadow, COLOR_SWATCHES } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { AppIcon, AppIconName } from '../../components/icons/AppIcons';
+import { FigmaIcon } from '../../components/icons/FigmaIcon';
 
 const OUTFIT_TABS = ['All', 'Casual', 'Formal', 'Business', 'Evening Wear'];
 const FALLBACK_ITEM_TABS = ['All', 'Top', 'Bottom', 'Dress', 'Shoes'];
@@ -133,6 +134,12 @@ export default function HomeScreen() {
   }, [outfitTab, itemTab]);
 
   useEffect(() => { load(); }, [load]);
+  // Bug: the Favorites count (and Items/Outfits/Categories) only ever
+  // loaded once, on first mount. Favoriting something in Closet and
+  // coming back here never reflected it until a hard refresh. Reload
+  // every time this screen regains focus — e.g. tapping back from
+  // Closet — not just the first time it's opened.
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
@@ -288,7 +295,7 @@ export default function HomeScreen() {
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeaderInCard}>
             <Text style={styles.sectionTitle}>My Outfits</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('OutfitsTab')}>
+            <TouchableOpacity onPress={() => navigation.navigate('OutfitsTab', { screen: 'OutfitsHome' })}>
               <Text style={styles.viewAll}>View all</Text>
             </TouchableOpacity>
           </View>
@@ -325,7 +332,7 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: spacing.sm, paddingTop: spacing.xs }}
               renderItem={({ item }) => (
-                <TouchableOpacity style={styles.outfitCard} onPress={() => navigation.navigate('OutfitsTab')}>
+                <TouchableOpacity style={styles.outfitCard} onPress={() => navigation.navigate('OutfitsTab', { screen: 'OutfitDetail', params: { outfitId: item.id } })}>
                   <View style={styles.outfitThumbRow}>
                     <ItemThumb item={item.itemIds?.[0] ? outfitPreviews[item.itemIds[0]] ?? null : null} size={80} noBorder />
                   </View>
@@ -334,8 +341,9 @@ export default function HomeScreen() {
                   <TouchableOpacity
                     style={styles.itemHeart}
                     onPress={() => { apiSetOutfitFavorite(item.id, !item.isFavorite); setOutfits((prev) => prev.map((o) => (o.id === item.id ? { ...o, isFavorite: !item.isFavorite } : o))); }}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                   >
-                    <Text style={{ color: item.isFavorite ? colors.heart : colors.inkMuted }}>{item.isFavorite ? '♥' : '♡'}</Text>
+                    <FigmaIcon name={item.isFavorite ? 'heart' : 'heartOutline'} size={13} color={item.isFavorite ? colors.heart : colors.ink} />
                   </TouchableOpacity>
                   <Text style={styles.outfitName} numberOfLines={1}>{item.name ?? 'Outfit'}</Text>
                   <View style={styles.outfitMetaRow}>
@@ -393,8 +401,9 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   style={styles.itemHeart}
                   onPress={() => { setItemFavorite(item.id, !item.isFavorite); load(); }}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 >
-                  <Text style={{ color: item.isFavorite ? colors.heart : colors.inkMuted }}>{item.isFavorite ? '♥' : '♡'}</Text>
+                  <FigmaIcon name={item.isFavorite ? 'heart' : 'heartOutline'} size={13} color={item.isFavorite ? colors.heart : colors.ink} />
                 </TouchableOpacity>
                 <Text style={styles.itemLabel} numberOfLines={1}>{item.color} {item.category}</Text>
               </TouchableOpacity>
@@ -581,7 +590,7 @@ function makeStyles(colors: any, type: any) {
       backgroundColor: colors.card, borderRadius: radius.lg, marginHorizontal: spacing.lg,
       marginTop: spacing.lg, padding: spacing.md, ...cardShadow,
     },
-    sectionHeaderInCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
+    sectionHeaderInCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
     emptyStateInCard: { alignItems: 'center', paddingTop: spacing.sm },
     sectionTitleLoose: { paddingHorizontal: spacing.lg },
     // Illustrated empty states — matches the client reference exactly:
@@ -611,7 +620,10 @@ function makeStyles(colors: any, type: any) {
     // the pill's own border/padding (~26) are added up — it clipped a
     // couple of pixels off the bottom of the row, right where letter
     // descenders (g/y/j) live, cutting them off mid-glyph.
-    tabList: { flexGrow: 0, maxHeight: 48 },
+    // Bug: no margin at all below this row, and only spacing.xs above
+    // it (see sectionHeaderInCard) — chips read as jammed between the
+    // heading and the content below with barely any breathing room.
+    tabList: { flexGrow: 0, maxHeight: 48, marginBottom: spacing.xs },
     tabRow: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, gap: spacing.xs, alignItems: 'center' },
     tab: { paddingVertical: 5, paddingHorizontal: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, marginRight: 6 },
     tabActive: { backgroundColor: colors.lavender, borderColor: colors.lavenderDeep },
@@ -624,7 +636,15 @@ function makeStyles(colors: any, type: any) {
     outfitMeta: { fontSize: 10, color: colors.inkMuted },
     outfitRating: { fontSize: 10, color: colors.warning, fontWeight: '600' },
     itemCard: { width: 90, alignItems: 'center', position: 'relative' },
-    itemHeart: { position: 'absolute', top: 4, right: 4 },
+    // Was bare ♥/♡ text floating directly on the photo with no
+    // backdrop at all — genuinely invisible against light or busy
+    // photos. Same solid white circle + drop shadow as Closet's
+    // favorite button now, so it reads the same everywhere.
+    itemHeart: {
+      position: 'absolute', top: 4, right: 4, width: 24, height: 24, borderRadius: 12,
+      backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
+      shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.18, shadowRadius: 3, elevation: 3,
+    },
     itemLabel: { fontSize: 11, color: colors.inkMuted, marginTop: 4, textTransform: 'capitalize', textAlign: 'center' },
     empty: { ...type.muted, padding: spacing.md },
     categoryCard: {

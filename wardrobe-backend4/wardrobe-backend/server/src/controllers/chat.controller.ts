@@ -28,20 +28,22 @@ export async function deleteHistory(req: Request, res: Response) {
 export async function sendMessage(req: Request, res: Response) {
   const userId = req.auth?.userId;
   if (!userId) return res.status(401).json({ error: 'Not authenticated' });
-  const { text } = req.body as { text: string };
-  if (!text?.trim()) return res.status(400).json({ error: 'text is required' });
+  const { text, imageDataUri } = req.body as { text: string; imageDataUri?: string };
+  // A photo with no caption is a valid message — only reject if there's
+  // truly nothing (no text AND no photo).
+  if (!text?.trim() && !imageDataUri) return res.status(400).json({ error: 'text is required' });
 
   const userMessage: ChatMessage = {
-    id: randomUUID(), userId, role: 'user', text,
+    id: randomUUID(), userId, role: 'user', text: text ?? '',
     suggestedOutfitIds: null, referencedItemIds: null, quickReplies: null, createdAt: Date.now(),
   };
   await saveChatMessage(userMessage);
 
   const closet = await listWardrobeItems(userId);
-  const { text: replyText, quickReplies, referencedItemIds } = await generateChatReply(text, closet);
+  const { text: replyText, quickReplies, referencedItemIds } = await generateChatReply(text ?? '', closet, imageDataUri ?? null);
 
   // If the message reads like a request for an outfit, attach suggested items.
-  const wantsOutfit = wantsOutfitSuggestion(text);
+  const wantsOutfit = wantsOutfitSuggestion(text ?? '');
   const suggestedItems = wantsOutfit ? pickOutfitItems(closet, null, null) : [];
 
   const assistantMessage: ChatMessage = {

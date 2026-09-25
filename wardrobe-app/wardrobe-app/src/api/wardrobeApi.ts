@@ -401,8 +401,8 @@ export const saveManualOutfit = (itemIds: string[]) =>
 
 export const getChatHistory = () => authedFetch('/chat/history');
 export const clearChatHistory = () => authedFetch('/chat/history', { method: 'DELETE' });
-export const sendChatMessage = (text: string) =>
-  authedFetch('/chat/message', { method: 'POST', body: JSON.stringify({ text }) });
+export const sendChatMessage = (text: string, imageDataUri?: string | null) =>
+  authedFetch('/chat/message', { method: 'POST', body: JSON.stringify({ text, imageDataUri: imageDataUri ?? undefined }) });
 
 // ---------- Style Profile (body shape + AI color analysis) ----------
 

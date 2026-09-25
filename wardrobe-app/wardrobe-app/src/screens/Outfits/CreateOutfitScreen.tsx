@@ -145,6 +145,32 @@ export default function CreateOutfitScreen() {
     .map((section) => ({ section, items: items.filter((i) => sectionFor(i.category) === section) }))
     .filter((s) => s.items.length > 0);
 
+  // Bug: with a big closet, this whole picker was one giant ScrollView
+  // showing every single item in every category at once — hundreds of
+  // items to scroll past just to find one pair of shoes. Sections are
+  // now collapsible (closed by default; only the first one starts
+  // open, since it's usually what you reach for first) — tap a
+  // category to reveal its items instead of everything being on-screen
+  // at once. Typing in the search box below overrides this: it
+  // auto-opens and filters every section that has a match, so search
+  // and browse-by-category both work without getting in each other's
+  // way.
+  const [search, setSearch] = useState('');
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(() => new Set(sections[0] ? [sections[0].section] : []));
+  const toggleSection = (section: string) =>
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      next.has(section) ? next.delete(section) : next.add(section);
+      return next;
+    });
+
+  const searchLower = search.trim().toLowerCase();
+  const visibleSections = searchLower
+    ? sections
+        .map((s) => ({ section: s.section, items: s.items.filter((i) => `${i.color} ${i.category} ${i.name ?? ''}`.toLowerCase().includes(searchLower)) }))
+        .filter((s) => s.items.length > 0)
+    : sections;
+
   if (!loaded) return <SafeAreaView style={styles.container} />;
 
   return (
@@ -155,24 +181,48 @@ export default function CreateOutfitScreen() {
         <Text style={styles.title}>{editOutfitId ? 'Edit Outfit' : 'Create Outfit'}</Text>
 
         {sections.length === 0 && <Text style={styles.empty}>Add closet items first.</Text>}
-        {sections.map(({ section, items: sectionItems }) => (
-          <View key={section}>
-            <Text style={styles.sectionLabel}>{section}</Text>
-            <View style={styles.itemGrid}>
-              {sectionItems.map((item) => (
-                <TouchableOpacity key={item.id} style={styles.itemTile} onPress={() => toggleItem(item.id)} activeOpacity={0.8}>
-                  <ItemThumb item={item} size={84} selected={selectedIds.includes(item.id)} />
-                  <Text style={styles.itemLabel} numberOfLines={1}>{item.color} {item.category?.replace(/_/g, ' ')}</Text>
-                  {selectedIds.includes(item.id) && (
-                    <View style={styles.selectedBadge}><FigmaIcon name="checkmark" size={12} color={colors.white} /></View>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
+        {sections.length > 0 && (
+          <View style={styles.searchWrap}>
+            <FigmaIcon name="filter" size={14} color={colors.inkMuted} />
+            <TextInput
+              style={styles.searchInput}
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search your closet…"
+              placeholderTextColor={colors.inkMuted}
+            />
           </View>
-        ))}
+        )}
+        {visibleSections.length === 0 && searchLower !== '' && <Text style={styles.empty}>No items match "{search}".</Text>}
+        {visibleSections.map(({ section, items: sectionItems }) => {
+          const isOpen = searchLower !== '' || expandedSections.has(section);
+          return (
+            <View key={section}>
+              <TouchableOpacity style={styles.sectionHeaderRow} onPress={() => toggleSection(section)} activeOpacity={0.7}>
+                <Text style={styles.sectionLabel}>{section}</Text>
+                <View style={styles.sectionHeaderRight}>
+                  <Text style={styles.sectionCount}>{sectionItems.length}</Text>
+                  <FigmaIcon name="chevronDown" size={14} color={colors.inkMuted} style={isOpen ? styles.chevronOpen : undefined} />
+                </View>
+              </TouchableOpacity>
+              {isOpen && (
+                <View style={styles.itemGrid}>
+                  {sectionItems.map((item) => (
+                    <TouchableOpacity key={item.id} style={styles.itemTile} onPress={() => toggleItem(item.id)} activeOpacity={0.8}>
+                      <ItemThumb item={item} size={84} selected={selectedIds.includes(item.id)} />
+                      <Text style={styles.itemLabel} numberOfLines={1}>{item.color} {item.category?.replace(/_/g, ' ')}</Text>
+                      {selectedIds.includes(item.id) && (
+                        <View style={styles.selectedBadge}><FigmaIcon name="checkmark" size={12} color={colors.white} /></View>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          );
+        })}
 
-        <Text style={styles.sectionLabel}>Category</Text>
+        <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>Category</Text>
         <View style={styles.chipRow}>
           {categories.map((c) => <Chip key={c} label={c.replace(/_/g, ' ')} emoji={CATEGORY_EMOJI[c]} selected={category === c} onPress={() => setCategory(c)} />)}
         </View>
@@ -182,14 +232,14 @@ export default function CreateOutfitScreen() {
             with ("clean girl", "y2k") rather than a functional label
             like "casual"/"business". Feeds Ara's outfit picking and
             the Outfits filter panel. */}
-        <Text style={styles.sectionLabel}>Vibe / aesthetic (optional)</Text>
+        <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>Vibe / aesthetic (optional)</Text>
         <View style={styles.pillRow}>
           {aesthetics.map((a) => (
             <TagPill key={a} label={a.replace(/_/g, ' ')} selected={aesthetic === a} onPress={() => setAesthetic(aesthetic === a ? null : a)} />
           ))}
         </View>
 
-        <Text style={styles.sectionLabel}>Name this outfit</Text>
+        <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>Name this outfit</Text>
         <TextInput
           style={styles.nameInput}
           value={name}
@@ -210,7 +260,17 @@ function makeStyles(colors: any, type: any) {
   return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   title: { ...type.h1, marginBottom: spacing.lg, textAlign: 'center' },
-  sectionLabel: { ...type.h3, marginTop: spacing.md, marginBottom: spacing.sm },
+  sectionLabel: { ...type.h3 },
+  sectionLabelSpaced: { marginTop: spacing.md, marginBottom: spacing.sm },
+  searchWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.xs, backgroundColor: colors.bgSoft,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: spacing.md, height: 40, marginBottom: spacing.sm,
+  },
+  searchInput: { flex: 1, fontSize: 14, color: colors.ink, paddingVertical: 0 },
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md },
+  sectionHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  sectionCount: { ...type.muted, fontSize: 13 },
+  chevronOpen: { transform: [{ rotate: '180deg' }] },
   itemGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   itemTile: { alignItems: 'center', width: 84, position: 'relative' },
   itemLabel: { fontSize: 10.5, color: colors.inkMuted, marginTop: 4, textTransform: 'capitalize', textAlign: 'center' },

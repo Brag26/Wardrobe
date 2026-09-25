@@ -46,7 +46,7 @@ export default function AddItemScreen() {
   const savedSuccessfully = React.useRef(false);
   useUnsavedChangesWarning(React.useCallback(() => {
     if (savedSuccessfully.current) return false;
-    return !!imageUri || !!form.category || !!form.color || form.name.trim() !== '' ||
+    return !!imageUri || !!form.category || form.color.length > 0 || form.name.trim() !== '' ||
       form.brand.trim() !== '' || form.price.trim() !== '' || form.size.trim() !== '' || form.material.trim() !== '';
   }, [imageUri, form]));
   const [scanning, setScanning] = useState(false);
@@ -83,12 +83,12 @@ export default function AddItemScreen() {
       if (!currentForm.category && scanned.category && suggestions.categories.includes(scanned.category)) {
         patch.category = scanned.category;
       }
-      if (!currentForm.color && scanned.color && suggestions.colors.includes(scanned.color)) {
-        patch.color = scanned.color;
+      if (currentForm.color.length === 0 && scanned.color && suggestions.colors.includes(scanned.color)) {
+        patch.color = [scanned.color];
       }
       if (Object.keys(patch).length > 0) {
         updateForm(patch);
-        setIdentifyNote(`Ara thinks this looks like a ${[patch.color, patch.category?.replace(/_/g, ' ')].filter(Boolean).join(' ')} — double-check below.`);
+        setIdentifyNote(`Ara thinks this looks like a ${[patch.color?.[0], patch.category?.replace(/_/g, ' ')].filter(Boolean).join(' ')} — double-check below.`);
       } else {
         setIdentifyNote(null); // couldn't tell confidently — just leave the form for manual entry, no need to announce a non-result
       }
@@ -127,7 +127,7 @@ export default function AddItemScreen() {
       // vocabulary — otherwise the picker would show a selected value
       // that doesn't match any visible pill, which looks broken.
       if (scanned.category && suggestions.categories.includes(scanned.category)) patch.category = scanned.category;
-      if (scanned.color && suggestions.colors.includes(scanned.color)) patch.color = scanned.color;
+      if (scanned.color && suggestions.colors.includes(scanned.color)) patch.color = [scanned.color];
       updateForm(patch);
 
       const filledCount = Object.keys(patch).length;
@@ -212,11 +212,13 @@ export default function AddItemScreen() {
   };
 
   const handleSave = async () => {
-    if (!form.category || !form.color) return Alert.alert('Missing info', 'Pick a category and color first.');
+    if (!form.category || form.color.length === 0) return Alert.alert('Missing info', 'Pick a category and color first.');
     setSaving(true);
     try {
       const created = await uploadWardrobeItem(imageUri, {
-        category: form.category, color: form.color, occasionTags: form.occasionTags,
+        // Backend still stores color as one string — join multiple
+        // picks with a comma rather than changing the data model.
+        category: form.category, color: form.color.join(', '), occasionTags: form.occasionTags,
         name: form.name.trim() || undefined,
         style: form.style ?? undefined,
         season: form.season ?? undefined,
@@ -253,6 +255,7 @@ export default function AddItemScreen() {
   // rather than keep silently spinning.
   const [bgStatus, setBgStatus] = useState<string | null>(null);
   const [bgError, setBgError] = useState<string | null>(null);
+  const [showBgErrorDetails, setShowBgErrorDetails] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
   // Bumped by "Try again" to restart the polling below.
   const [pollRun, setPollRun] = useState(0);
@@ -261,10 +264,19 @@ export default function AddItemScreen() {
     if (!savedItem) return;
     setBgStatus(pollRun === 0 ? (savedItem.backgroundRemoval?.status ?? 'pending') : 'pending');
     setBgError(null);
+    setShowBgErrorDetails(false);
     setElapsedSec(0);
     const startedAt = Date.now();
+    // Bug: clearInterval stops future ticks, but a poll already in
+    // flight (awaiting the network) when you finish this item and move
+    // to the next isn't cancelled by it — its response can still land
+    // after `savedItem` has moved on, overwriting the NEW item's fresh
+    // "successfully added" screen with the PREVIOUS item's old error.
+    // This flag makes every setState below a no-op once this effect's
+    // cleanup has run, regardless of when the in-flight request settles.
+    let cancelled = false;
 
-    const tick = setInterval(() => setElapsedSec(Math.round((Date.now() - startedAt) / 1000)), 1000);
+    const tick = setInterval(() => { if (!cancelled) setElapsedSec(Math.round((Date.now() - startedAt) / 1000)); }, 1000);
 
     const interval = setInterval(async () => {
       const elapsed = Date.now() - startedAt;
@@ -275,15 +287,16 @@ export default function AddItemScreen() {
       }
       try {
         const fresh = await (await import('../../api/wardrobeApi')).getWardrobeItem(savedItem.id);
+        if (cancelled) return;
         setBgStatus(fresh.backgroundRemoval?.status ?? 'done');
         setBgError(fresh.backgroundRemoval?.error ?? null);
         if (fresh.backgroundRemoval?.status === 'done' || fresh.backgroundRemoval?.status === 'failed') {
           clearInterval(interval);
           clearInterval(tick);
         }
-      } catch { clearInterval(interval); clearInterval(tick); }
+      } catch { if (!cancelled) { clearInterval(interval); clearInterval(tick); } }
     }, 2500);
-    return () => { clearInterval(interval); clearInterval(tick); };
+    return () => { cancelled = true; clearInterval(interval); clearInterval(tick); };
   }, [savedItem, pollRun]);
 
   const retryBgRemoval = async () => {
@@ -322,10 +335,23 @@ export default function AddItemScreen() {
           ) : null}
           {bgStatus === 'failed' ? (
             <>
+              {/* Bug: the raw error text (model name, finishReason,
+                  raw JSON) was always shown here — meant for debugging
+                  during development, not something a real user should
+                  ever see on a "success" screen. Now hidden behind an
+                  optional tap, off by default. */}
               {bgError ? (
-                <Text style={[type.muted, { textAlign: 'center', marginTop: spacing.sm, fontSize: 11 }]} numberOfLines={4} selectable>
-                  Reason: {bgError}
-                </Text>
+                showBgErrorDetails ? (
+                  <TouchableOpacity onPress={() => setShowBgErrorDetails(false)}>
+                    <Text style={[type.muted, { textAlign: 'center', marginTop: spacing.sm, fontSize: 11 }]} numberOfLines={6} selectable>
+                      {bgError}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity onPress={() => setShowBgErrorDetails(true)} style={{ marginTop: spacing.xs }}>
+                    <Text style={[type.muted, { fontSize: 11, textDecorationLine: 'underline' }]}>Show technical details</Text>
+                  </TouchableOpacity>
+                )
               ) : null}
               <View style={{ height: spacing.md }} />
               <Button label={retrying ? 'Starting…' : 'Try again'} onPress={retryBgRemoval} variant="outline" />

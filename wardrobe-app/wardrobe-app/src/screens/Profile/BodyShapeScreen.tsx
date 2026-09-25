@@ -10,13 +10,14 @@ import { getProfile, setBodyShape } from '../../api/wardrobeApi';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { AppIcon } from '../../components/icons/AppIcons';
+import { BodyShapeIcon, BodyShapeKey } from '../../components/icons/BodyShapeIcons';
 
 const SHAPES = [
-  { key: 'hourglass', label: 'Hourglass', emoji: '⏳', desc: 'Bust and hips are balanced, waist is defined' },
-  { key: 'pear', label: 'Pear', emoji: '🍐', desc: 'Hips are wider than bust and shoulders' },
-  { key: 'apple', label: 'Apple', emoji: '🍎', desc: 'Fuller through the middle, slimmer legs' },
-  { key: 'rectangle', label: 'Rectangle', emoji: '📏', desc: 'Bust, waist, and hips are similar in width' },
-  { key: 'inverted_triangle', label: 'Inverted Triangle', emoji: '🔺', desc: 'Shoulders/bust are wider than hips' },
+  { key: 'hourglass', label: 'Hourglass', desc: 'Bust and hips are balanced, waist is defined' },
+  { key: 'pear', label: 'Pear', desc: 'Hips are wider than bust and shoulders' },
+  { key: 'apple', label: 'Apple', desc: 'Fuller through the middle, slimmer legs' },
+  { key: 'rectangle', label: 'Rectangle', desc: 'Bust, waist, and hips are similar in width' },
+  { key: 'inverted_triangle', label: 'Inverted Triangle', desc: 'Shoulders/bust are wider than hips' },
 ];
 
 export default function BodyShapeScreen() {
@@ -43,7 +44,7 @@ export default function BodyShapeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScreenHeader title="Body Shape" />
+      <ScreenHeader title="Body Type" />
       <Text style={styles.subtitle}>
         This helps Ara pick silhouettes that actually work for you — you know your body better than a photo guess ever could.
       </Text>
@@ -55,8 +56,8 @@ export default function BodyShapeScreen() {
           onPress={() => handleSelect(s.key)}
           activeOpacity={0.85}
         >
-          <Text style={styles.emoji}>{s.emoji}</Text>
-          <View style={{ flex: 1 }}>
+          <BodyShapeIcon shape={s.key as BodyShapeKey} size={56} />
+          <View style={{ flex: 1, marginLeft: spacing.md }}>
             <Text style={styles.cardLabel}>{s.label}</Text>
             <Text style={styles.cardDesc}>{s.desc}</Text>
           </View>
@@ -76,7 +77,7 @@ function makeStyles(colors: any, type: any) {
       borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.sm,
     },
     cardSelected: { borderColor: colors.lavenderDeep, backgroundColor: colors.lavender },
-    emoji: { fontSize: 28, marginRight: spacing.md },
+    emoji: { fontSize: 28, marginRight: spacing.md }, // no longer used, kept harmless
     cardLabel: { ...type.h3 },
     cardDesc: { ...type.muted, marginTop: 2 },
     check: { fontSize: 18, color: colors.success, fontWeight: '700' },
