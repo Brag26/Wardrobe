@@ -107,7 +107,22 @@ export async function deleteWardrobePhoto(key: string): Promise<void> {
 export const MAX_PHOTO_BYTES = 20 * 1024 * 1024; // 20MB
 
 export async function verifyUploadedPhotoSize(key: string): Promise<void> {
-  const head = await s3.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
+  let head;
+  try {
+    head = await s3.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
+  } catch (err: any) {
+    // A HeadObject failure here almost always means the client's PUT to
+    // the presigned URL never actually completed (network drop, expired
+    // URL, signature mismatch) — the object just isn't in the bucket.
+    // Left as-is, the AWS SDK throws an opaque "UnknownError"/"NotFound"
+    // with no useful message, which surfaced to the person as a bare
+    // "Could not save — UnknownError" alert with no indication that the
+    // real problem was the photo upload itself, not the save. Client-
+    // side now checks the PUT's own response status before ever calling
+    // this endpoint, but this is a clear, actionable fallback in case a
+    // key still shows up unverifiable for any other reason.
+    throw new Error("We couldn't find the uploaded photo — the upload may not have completed. Please try again.");
+  }
   const size = head.ContentLength ?? 0;
   if (size > MAX_PHOTO_BYTES) {
     await deleteWardrobePhoto(key);

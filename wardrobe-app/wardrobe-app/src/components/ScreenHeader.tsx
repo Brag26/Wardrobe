@@ -26,7 +26,22 @@ export function ScreenHeader({ title, onBack, dark }: ScreenHeaderProps) {
   // that tab's own stack to return to. Only show the arrow when either
   // a custom onBack was given, or the navigator actually has history.
   const canGoBack = !!onBack || navigation.canGoBack();
-  const handleBack = onBack ?? (() => navigation.goBack());
+  // Bug: when a screen is opened directly (e.g. Home's "Add outfit" FAB
+  // jumping straight to Create Outfit with nothing behind it in that
+  // tab's own stack), the default goBack() has nothing local to pop, so
+  // it bubbles up and lands on whichever tab the bottom-tab navigator
+  // last has in its focus history — which is not necessarily the
+  // Wardrobe home screen. Checking this navigator's own stack index
+  // first means: pop normally when there's a real previous screen in
+  // this stack, otherwise go straight to the Wardrobe (Fits) home tab.
+  const handleBack = onBack ?? (() => {
+    const state = navigation.getState?.();
+    if (state && typeof state.index === 'number' && state.index > 0) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('HomeTab');
+    }
+  });
 
   return (
     <View style={styles.row}>

@@ -6,7 +6,6 @@ import ItemDetailsScreen from '../screens/Closet/ItemDetailsScreen';
 import FavoritesScreen from '../screens/Favorites/FavoritesScreen';
 import BinScreen from '../screens/Bin/BinScreen';
 import ArchiveScreen from '../screens/Closet/ArchiveScreen';
-import ReorderItemsScreen from '../screens/Closet/ReorderItemsScreen';
 import BulkUploadScreen from '../screens/Closet/BulkUploadScreen';
 
 const Stack = createNativeStackNavigator();
@@ -20,7 +19,6 @@ export default function ClosetNavigator() {
       <Stack.Screen name="Favorites" component={FavoritesScreen} />
       <Stack.Screen name="Bin" component={BinScreen} />
       <Stack.Screen name="Archive" component={ArchiveScreen} />
-      <Stack.Screen name="ReorderItems" component={ReorderItemsScreen} />
       <Stack.Screen name="BulkUpload" component={BulkUploadScreen} />
     </Stack.Navigator>
   );

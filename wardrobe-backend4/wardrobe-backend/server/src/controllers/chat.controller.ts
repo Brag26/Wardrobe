@@ -6,6 +6,7 @@ import { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { saveChatMessage, getChatHistory, clearChatHistory, listWardrobeItems } from '../services/mongodb.service';
 import { generateChatReply, pickOutfitItems, wantsOutfitSuggestion } from '../services/aiStylist.service';
+import { getPublicUrl } from '../services/s3.service';
 import { ChatMessage } from '../types/domain';
 
 // GET /api/chat/history
@@ -24,26 +25,35 @@ export async function deleteHistory(req: Request, res: Response) {
   res.json({ ok: true });
 }
 
-// POST /api/chat/message   body: { text: string }
+// POST /api/chat/message   body: { text: string, s3Key?: string }
+// s3Key: an image the person just attached (uploaded beforehand via the
+// same presigned-URL flow as everything else — POST /wardrobe/upload-url,
+// then PUT the photo, then send the resulting key here). Previously this
+// endpoint only ever accepted text, so an attached photo never actually
+// reached the AI — the app just appended "[+ photo attached]" as a string
+// and the model replied to that literal text, not the image. Now, when a
+// photo comes with the message, it's actually sent to a vision-capable
+// model (same two-tier AI_VISION_PROVIDER chain used by color analysis /
+// tag scanning) so Ara genuinely sees it.
 export async function sendMessage(req: Request, res: Response) {
   const userId = req.auth?.userId;
   if (!userId) return res.status(401).json({ error: 'Not authenticated' });
-  const { text, imageDataUri } = req.body as { text: string; imageDataUri?: string };
-  // A photo with no caption is a valid message — only reject if there's
-  // truly nothing (no text AND no photo).
-  if (!text?.trim() && !imageDataUri) return res.status(400).json({ error: 'text is required' });
+  const { text, s3Key } = req.body as { text: string; s3Key?: string };
+  if (!text?.trim()) return res.status(400).json({ error: 'text is required' });
+
+  const imageUrl = s3Key ? getPublicUrl(s3Key) : undefined;
 
   const userMessage: ChatMessage = {
-    id: randomUUID(), userId, role: 'user', text: text ?? '',
+    id: randomUUID(), userId, role: 'user', text,
     suggestedOutfitIds: null, referencedItemIds: null, quickReplies: null, createdAt: Date.now(),
   };
   await saveChatMessage(userMessage);
 
   const closet = await listWardrobeItems(userId);
-  const { text: replyText, quickReplies, referencedItemIds } = await generateChatReply(text ?? '', closet, imageDataUri ?? null);
+  const { text: replyText, quickReplies, referencedItemIds } = await generateChatReply(text, closet, imageUrl);
 
   // If the message reads like a request for an outfit, attach suggested items.
-  const wantsOutfit = wantsOutfitSuggestion(text ?? '');
+  const wantsOutfit = wantsOutfitSuggestion(text);
   const suggestedItems = wantsOutfit ? pickOutfitItems(closet, null, null) : [];
 
   const assistantMessage: ChatMessage = {

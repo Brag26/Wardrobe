@@ -29,7 +29,13 @@ export default function OccasionScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScreenHeader />
+      {/* Container below carries its own padding for the layout's
+          space-between button; canceling it just for the header keeps
+          the back button flush-left like every other page instead of
+          sitting further in. */}
+      <View style={styles.headerRow}>
+        <ScreenHeader />
+      </View>
       <View style={styles.textBlock}>
         <Text style={type.h1}>Where are we going today?</Text>
         <Text style={[type.muted, { marginTop: 4 }]}>Your mood helps me style the perfect outfit for you</Text>
@@ -59,6 +65,7 @@ export default function OccasionScreen() {
 function makeStyles(colors: any, type: any) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg, padding: spacing.lg, justifyContent: 'space-between' },
+    headerRow: { marginHorizontal: -spacing.lg, marginTop: -spacing.lg },
     textBlock: { marginTop: spacing.md, marginBottom: spacing.lg },
     grid: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignContent: 'flex-start' },
     item: { marginBottom: spacing.lg },

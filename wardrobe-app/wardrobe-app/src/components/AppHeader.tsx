@@ -14,12 +14,21 @@ import { useAppTheme } from '../theme/ThemeContext';
 import { SuperBaeLogo, BellIcon, MenuIcon } from './icons/SuperBaeIcons';
 import { AppIcon, AppIconName } from './icons/AppIcons';
 
-const MENU_ITEMS: { label: string; icon: AppIconName; tab: string }[] = [
-  { label: 'Fits', icon: 'home', tab: 'HomeTab' },
-  { label: 'Ara', icon: 'sparkles', tab: 'AraTab' },
-  { label: 'Closet', icon: 'shirt', tab: 'ClosetTab' },
-  { label: 'Outfits', icon: 'albums', tab: 'OutfitsTab' },
-  { label: 'Chat', icon: 'chatBubble', tab: 'ChatTab' },
+// Bug (#19): navigating to a tab by name alone — navigation.navigate('OutfitsTab')
+// with no screen — doesn't reset that tab to its start screen. React
+// Navigation remembers whichever screen was last open inside that
+// tab's own stack (e.g. a specific outfit's detail page opened from
+// the "Outfit of the Day" banner) and just re-focuses it. So opening
+// "Outfits" from this menu could silently land back on some outfit's
+// detail page instead of the Outfits list — same root cause for
+// Closet and Ara. Naming each tab's real home screen and always
+// navigating to it explicitly resets it properly every time.
+const MENU_ITEMS: { label: string; icon: AppIconName; tab: string; home: string }[] = [
+  { label: 'Fits', icon: 'home', tab: 'HomeTab', home: 'HomeTab' },
+  { label: 'Ara', icon: 'sparkles', tab: 'AraTab', home: 'Welcome' },
+  { label: 'Closet', icon: 'shirt', tab: 'ClosetTab', home: 'ClosetHome' },
+  { label: 'Outfits', icon: 'albums', tab: 'OutfitsTab', home: 'OutfitsHome' },
+  { label: 'Chat', icon: 'chatBubble', tab: 'ChatTab', home: 'ChatTab' },
 ];
 
 export function AppHeader({ hasNotifications = false }: { hasNotifications?: boolean }) {
@@ -49,7 +58,7 @@ export function AppHeader({ hasNotifications = false }: { hasNotifications?: boo
               <TouchableOpacity
                 key={item.label}
                 style={styles.menuItem}
-                onPress={() => { setMenuOpen(false); navigation.navigate(item.tab); }}
+                onPress={() => { setMenuOpen(false); navigation.navigate(item.tab, item.home === item.tab ? undefined : { screen: item.home }); }}
               >
                 <AppIcon name={item.icon} size={18} color={colors.ink} />
                 <Text style={styles.menuItemText}>{item.label}</Text>

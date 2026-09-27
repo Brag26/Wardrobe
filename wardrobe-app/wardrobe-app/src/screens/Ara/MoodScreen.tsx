@@ -28,7 +28,9 @@ export default function MoodScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScreenHeader />
+      <View style={styles.headerRow}>
+        <ScreenHeader />
+      </View>
       <View style={styles.textBlock}>
         <Text style={type.h1}>How do you want to feel?</Text>
         <Text style={[type.muted, { marginTop: 4 }]}>Your mood helps me style the perfect outfit for you</Text>
@@ -58,6 +60,7 @@ export default function MoodScreen() {
 function makeStyles(colors: any) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg, padding: spacing.lg, justifyContent: 'space-between' },
+    headerRow: { marginHorizontal: -spacing.lg, marginTop: -spacing.lg },
     textBlock: { marginTop: spacing.md, marginBottom: spacing.lg },
     grid: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', gap: spacing.lg, alignContent: 'flex-start' },
     item: {},

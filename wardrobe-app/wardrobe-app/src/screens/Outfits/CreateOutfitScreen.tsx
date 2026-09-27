@@ -66,6 +66,18 @@ export default function CreateOutfitScreen() {
   const [categories, setCategories] = useState<string[]>(['casual', 'formal', 'business', 'evening_wear', 'sport']);
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(!editOutfitId);
+  // A closet can have hundreds/thousands of items — showing every
+  // section's items expanded at once (as it used to) made this screen
+  // basically unusable at that scale. Sections now behave like a
+  // dropdown: collapsed by default, tap the header to expand just the
+  // one you need.
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const toggleSection = (section: string) =>
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(section)) next.delete(section); else next.add(section);
+      return next;
+    });
   const savedSuccessfully = React.useRef(false);
   const originalValues = React.useRef<{ name: string; category: string | null; aesthetic: string | null; selectedIds: string[] } | null>(null);
 
@@ -108,7 +120,7 @@ export default function CreateOutfitScreen() {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const handleSave = async () => {
-    if (selectedIds.length === 0) return Alert.alert('Pick some items', 'Select at least one piece for this outfit.');
+    if (selectedIds.length === 0) return Alert.alert('There\'s no outfit yet', 'Select at least one piece of clothing to build this outfit.');
     // Previously this let the user bypass naming entirely via a "Save
     // as 'Untitled outfit'" option — QA flagged this as confusing and
     // asked for a hard requirement instead: no name, no save, just a
@@ -145,31 +157,24 @@ export default function CreateOutfitScreen() {
     .map((section) => ({ section, items: items.filter((i) => sectionFor(i.category) === section) }))
     .filter((s) => s.items.length > 0);
 
-  // Bug: with a big closet, this whole picker was one giant ScrollView
-  // showing every single item in every category at once — hundreds of
-  // items to scroll past just to find one pair of shoes. Sections are
-  // now collapsible (closed by default; only the first one starts
-  // open, since it's usually what you reach for first) — tap a
-  // category to reveal its items instead of everything being on-screen
-  // at once. Typing in the search box below overrides this: it
-  // auto-opens and filters every section that has a match, so search
-  // and browse-by-category both work without getting in each other's
-  // way.
-  const [search, setSearch] = useState('');
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(() => new Set(sections[0] ? [sections[0].section] : []));
-  const toggleSection = (section: string) =>
+  // When editing an outfit that already has pieces selected, expand
+  // whichever sections those pieces belong to so the current picks are
+  // visible right away instead of hidden behind a collapsed dropdown.
+  useEffect(() => {
+    if (!loaded || selectedIds.length === 0) return;
     setExpandedSections((prev) => {
       const next = new Set(prev);
-      next.has(section) ? next.delete(section) : next.add(section);
-      return next;
+      let changed = false;
+      for (const item of items) {
+        if (selectedIds.includes(item.id)) {
+          const section = sectionFor(item.category);
+          if (!next.has(section)) { next.add(section); changed = true; }
+        }
+      }
+      return changed ? next : prev;
     });
-
-  const searchLower = search.trim().toLowerCase();
-  const visibleSections = searchLower
-    ? sections
-        .map((s) => ({ section: s.section, items: s.items.filter((i) => `${i.color} ${i.category} ${i.name ?? ''}`.toLowerCase().includes(searchLower)) }))
-        .filter((s) => s.items.length > 0)
-    : sections;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, items.length]);
 
   if (!loaded) return <SafeAreaView style={styles.container} />;
 
@@ -181,31 +186,18 @@ export default function CreateOutfitScreen() {
         <Text style={styles.title}>{editOutfitId ? 'Edit Outfit' : 'Create Outfit'}</Text>
 
         {sections.length === 0 && <Text style={styles.empty}>Add closet items first.</Text>}
-        {sections.length > 0 && (
-          <View style={styles.searchWrap}>
-            <FigmaIcon name="filter" size={14} color={colors.inkMuted} />
-            <TextInput
-              style={styles.searchInput}
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Search your closet…"
-              placeholderTextColor={colors.inkMuted}
-            />
-          </View>
-        )}
-        {visibleSections.length === 0 && searchLower !== '' && <Text style={styles.empty}>No items match "{search}".</Text>}
-        {visibleSections.map(({ section, items: sectionItems }) => {
-          const isOpen = searchLower !== '' || expandedSections.has(section);
+        {sections.map(({ section, items: sectionItems }) => {
+          const expanded = expandedSections.has(section);
+          const selectedInSection = sectionItems.filter((i) => selectedIds.includes(i.id)).length;
           return (
             <View key={section}>
-              <TouchableOpacity style={styles.sectionHeaderRow} onPress={() => toggleSection(section)} activeOpacity={0.7}>
-                <Text style={styles.sectionLabel}>{section}</Text>
-                <View style={styles.sectionHeaderRight}>
-                  <Text style={styles.sectionCount}>{sectionItems.length}</Text>
-                  <FigmaIcon name="chevronDown" size={14} color={colors.inkMuted} style={isOpen ? styles.chevronOpen : undefined} />
-                </View>
+              <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection(section)} activeOpacity={0.7}>
+                <Text style={styles.sectionLabel}>
+                  {section} ({sectionItems.length}){selectedInSection > 0 ? ` · ${selectedInSection} picked` : ''}
+                </Text>
+                <FigmaIcon name="chevronDown" size={16} color={colors.inkMuted} style={expanded ? styles.chevronExpanded : undefined} />
               </TouchableOpacity>
-              {isOpen && (
+              {expanded && (
                 <View style={styles.itemGrid}>
                   {sectionItems.map((item) => (
                     <TouchableOpacity key={item.id} style={styles.itemTile} onPress={() => toggleItem(item.id)} activeOpacity={0.8}>
@@ -222,7 +214,7 @@ export default function CreateOutfitScreen() {
           );
         })}
 
-        <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>Category</Text>
+        <Text style={styles.sectionLabel}>Category</Text>
         <View style={styles.chipRow}>
           {categories.map((c) => <Chip key={c} label={c.replace(/_/g, ' ')} emoji={CATEGORY_EMOJI[c]} selected={category === c} onPress={() => setCategory(c)} />)}
         </View>
@@ -232,14 +224,14 @@ export default function CreateOutfitScreen() {
             with ("clean girl", "y2k") rather than a functional label
             like "casual"/"business". Feeds Ara's outfit picking and
             the Outfits filter panel. */}
-        <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>Vibe / aesthetic (optional)</Text>
+        <Text style={styles.sectionLabel}>Vibe / aesthetic (optional)</Text>
         <View style={styles.pillRow}>
           {aesthetics.map((a) => (
             <TagPill key={a} label={a.replace(/_/g, ' ')} selected={aesthetic === a} onPress={() => setAesthetic(aesthetic === a ? null : a)} />
           ))}
         </View>
 
-        <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>Name this outfit</Text>
+        <Text style={styles.sectionLabel}>Name this outfit</Text>
         <TextInput
           style={styles.nameInput}
           value={name}
@@ -261,16 +253,11 @@ function makeStyles(colors: any, type: any) {
   container: { flex: 1, backgroundColor: colors.bg },
   title: { ...type.h1, marginBottom: spacing.lg, textAlign: 'center' },
   sectionLabel: { ...type.h3 },
-  sectionLabelSpaced: { marginTop: spacing.md, marginBottom: spacing.sm },
-  searchWrap: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.xs, backgroundColor: colors.bgSoft,
-    borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: spacing.md, height: 40, marginBottom: spacing.sm,
+  sectionHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: spacing.md, marginBottom: spacing.sm, paddingVertical: spacing.xs,
   },
-  searchInput: { flex: 1, fontSize: 14, color: colors.ink, paddingVertical: 0 },
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md },
-  sectionHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  sectionCount: { ...type.muted, fontSize: 13 },
-  chevronOpen: { transform: [{ rotate: '180deg' }] },
+  chevronExpanded: { transform: [{ rotate: '180deg' }] },
   itemGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   itemTile: { alignItems: 'center', width: 84, position: 'relative' },
   itemLabel: { fontSize: 10.5, color: colors.inkMuted, marginTop: 4, textTransform: 'capitalize', textAlign: 'center' },

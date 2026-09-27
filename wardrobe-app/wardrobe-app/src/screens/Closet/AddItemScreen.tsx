@@ -212,6 +212,7 @@ export default function AddItemScreen() {
   };
 
   const handleSave = async () => {
+    if (!imageUri) return Alert.alert('Add a photo', 'Take or pick a photo of the item before saving.');
     if (!form.category || form.color.length === 0) return Alert.alert('Missing info', 'Pick a category and color first.');
     setSaving(true);
     try {
@@ -267,16 +268,8 @@ export default function AddItemScreen() {
     setShowBgErrorDetails(false);
     setElapsedSec(0);
     const startedAt = Date.now();
-    // Bug: clearInterval stops future ticks, but a poll already in
-    // flight (awaiting the network) when you finish this item and move
-    // to the next isn't cancelled by it — its response can still land
-    // after `savedItem` has moved on, overwriting the NEW item's fresh
-    // "successfully added" screen with the PREVIOUS item's old error.
-    // This flag makes every setState below a no-op once this effect's
-    // cleanup has run, regardless of when the in-flight request settles.
-    let cancelled = false;
 
-    const tick = setInterval(() => { if (!cancelled) setElapsedSec(Math.round((Date.now() - startedAt) / 1000)); }, 1000);
+    const tick = setInterval(() => setElapsedSec(Math.round((Date.now() - startedAt) / 1000)), 1000);
 
     const interval = setInterval(async () => {
       const elapsed = Date.now() - startedAt;
@@ -287,16 +280,15 @@ export default function AddItemScreen() {
       }
       try {
         const fresh = await (await import('../../api/wardrobeApi')).getWardrobeItem(savedItem.id);
-        if (cancelled) return;
         setBgStatus(fresh.backgroundRemoval?.status ?? 'done');
         setBgError(fresh.backgroundRemoval?.error ?? null);
         if (fresh.backgroundRemoval?.status === 'done' || fresh.backgroundRemoval?.status === 'failed') {
           clearInterval(interval);
           clearInterval(tick);
         }
-      } catch { if (!cancelled) { clearInterval(interval); clearInterval(tick); } }
+      } catch { clearInterval(interval); clearInterval(tick); }
     }, 2500);
-    return () => { cancelled = true; clearInterval(interval); clearInterval(tick); };
+    return () => { clearInterval(interval); clearInterval(tick); };
   }, [savedItem, pollRun]);
 
   const retryBgRemoval = async () => {

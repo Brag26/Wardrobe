@@ -8,7 +8,7 @@ import { ItemThumb } from '../../components/ItemThumb';
 import { FabMenu } from '../../components/FabMenu';
 import { BuildWardrobeIllustration } from '../../components/illustrations/EmptyStateIllustrations';
 import { FilterPanel, FilterValues } from '../../components/FilterPanel';
-import { PageHeader, PAGE_TITLE_LEFT } from '../../components/PageHeader';
+import { PageHeader } from '../../components/PageHeader';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { AppIcon } from '../../components/icons/AppIcons';
@@ -34,10 +34,7 @@ export default function ClosetScreen() {
   // the 24px side padding on each side and the 8px gap, split in two), so the
   // heart lands on the photo's top-right corner.
   const { width: screenWidth } = useWindowDimensions();
-  // Left/right padding on the grid are no longer equal (see
-  // PAGE_TITLE_LEFT), so this has to account for each side separately
-  // rather than assuming spacing.lg on both.
-  const cardWidth = Math.floor((screenWidth - PAGE_TITLE_LEFT - spacing.lg - spacing.sm) / 2);
+  const cardWidth = Math.floor((screenWidth - spacing.lg * 2 - spacing.sm) / 2);
 
   const [items, setItems] = useState<any[]>([]);
   const [category, setCategory] = useState(route.params?.initialCategory ?? 'All');
@@ -162,7 +159,7 @@ export default function ClosetScreen() {
         keyExtractor={(i) => i.id}
         numColumns={2}
         style={{ flex: 1 }}
-        columnWrapperStyle={{ gap: spacing.sm, paddingLeft: PAGE_TITLE_LEFT, paddingRight: spacing.lg }}
+        columnWrapperStyle={{ gap: spacing.sm, paddingHorizontal: spacing.lg }}
         contentContainerStyle={{ gap: spacing.sm, paddingBottom: 90 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
@@ -243,7 +240,7 @@ function makeStyles(colors: any, type: any) {
     // so the last chip can always be scrolled fully into view on Android.
     tabList: {
       flexGrow: 0, maxHeight: 52, marginBottom: spacing.sm,
-      marginLeft: PAGE_TITLE_LEFT, marginRight: spacing.lg, backgroundColor: colors.bgSoft, borderRadius: radius.pill,
+      marginHorizontal: spacing.lg, backgroundColor: colors.bgSoft, borderRadius: radius.pill,
       borderWidth: 1, borderColor: colors.border, overflow: 'hidden',
     },
     // Wrapped in a capsule/track background (segmented-control look)
@@ -251,17 +248,12 @@ function makeStyles(colors: any, type: any) {
     // scatter of floating pills — plus a small label above it, since
     // previously there was no header at all indicating what this row
     // of tabs was for.
-    // Bug: this started at the screen's plain 24px edge like the header
-    // icon row, but the page TITLE above it starts further right (past
-    // the back button) — so everything below the title read as
-    // misaligned with it. Left edge now matches the title's actual
-    // position; right edge is unchanged.
     searchBar: {
       flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border,
-      borderRadius: radius.pill, marginLeft: PAGE_TITLE_LEFT, marginRight: spacing.lg, marginBottom: spacing.md, paddingHorizontal: spacing.md, height: 42,
+      borderRadius: radius.pill, marginHorizontal: spacing.lg, marginBottom: spacing.md, paddingHorizontal: spacing.md, height: 42,
     },
     searchInput: { flex: 1, fontSize: 14, color: colors.ink, paddingVertical: 0 },
-    sectionLabel: { fontSize: 12, fontWeight: '700', color: colors.inkMuted, paddingLeft: PAGE_TITLE_LEFT, paddingRight: spacing.lg, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3 },
+    sectionLabel: { fontSize: 12, fontWeight: '700', color: colors.inkMuted, paddingHorizontal: spacing.lg, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3 },
     tabRow: { paddingHorizontal: 6, paddingVertical: 6, gap: spacing.xs, alignItems: 'center' },
     tab: { paddingVertical: 5, paddingHorizontal: spacing.sm, borderRadius: radius.pill, backgroundColor: 'transparent', marginRight: 2 },
     tabActive: { backgroundColor: colors.card ?? colors.bg, borderWidth: 1, borderColor: colors.lavenderDeep },

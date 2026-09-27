@@ -1,0 +1,160 @@
+# --- Server (local dev only — not used when deployed to Lambda) ---
+PORT=4000
+
+# --- MongoDB Atlas ---
+# Team's cluster: M0 Free tier
+MONGODB_URI=mongodb://Superbae:SuperBae2026@ac-kjqe9hz-shard-00-00.epbxgir.mongodb.net:27017,ac-kjqe9hz-shard-00-01.epbxgir.mongodb.net:27017,ac-kjqe9hz-shard-00-02.epbxgir.mongodb.net:27017/wardrobe?ssl=true&replicaSet=atlas-10ltue-shard-0&authSource=admin&retryWrites=true&w=majority
+# --- Auth: Phone OTP -> JWT ---
+# PRODUCTION: JWT secret lives in AWS Secrets Manager, not here — set
+# JWT_SECRET_ARN to the secret's ARN once it's created (services/secrets.ts
+# fetches it at runtime and caches it across Lambda warm starts).
+# JWT_SECRET_ARN=arn:aws:secretsmanager:ap-south-1:720374066183:secret:wardrobe-jwt-secret-XXXXXX
+# LOCAL DEV ONLY fallback — if JWT_SECRET_ARN isn't set, this is used
+# instead, so you don't need real Secrets Manager access just to run
+# `npm run dev`. Generate with: openssl rand -hex 32
+JWT_SECRET=any-random-string-for-local-testing-12345
+JWT_EXPIRES_IN=30d
+
+# --- Amazon S3 ---
+AWS_REGION=ap-south-1
+AWS_S3_BUCKET=superbae-media
+AWS_BACKUP_BUCKET=superbae-media
+# Local dev only — in Lambda, credentials come from the function's IAM
+# role instead (see infra/serverless.yml), don't set these there.
+AWS_ACCESS_KEY_ID=AKIA2POND5QD5BHTSI7R
+AWS_SECRET_ACCESS_KEY=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
+
+# --- Amazon SNS (OTP SMS) ---
+# Production access: currently PENDING — request it in the SNS console
+# before real users can receive OTP texts. Until then (and for local
+# dev), leave this false: the OTP code prints to the console instead.
+SEND_REAL_SMS=false
+# Rate limits enforced in code (services/otp.service.ts), not configurable
+# via env — confirmed: 1 request per 60 seconds, max 5 per hour, per phone.
+
+# --- Dev login (skips OTP completely — no SNS needed at all) ---
+# Set to true only on your own machine for local testing. NEVER set this
+# to true in any deployed/production environment — POST /auth/dev-login
+# issues a real valid token for ANY phone number with zero verification
+# when this is on. Leave commented out / false everywhere except local dev.
+DEV_LOGIN_ENABLED=true
+
+# --- Background removal (Add Items screen) ---
+# Two providers:
+#
+#   removebg — remove.bg's REST API. Works for flat-lay/product photos
+#     with NO person in frame. Does NOT strip a person out of the shot,
+#     only the background behind them — a photo taken ON A MODEL still
+#     shows the model after processing. Needs BG_REMOVAL_API_KEY
+#     (remove.bg API key).
+#
+#   gemini — Gemini's image-editing model ("Nano Banana"). Genuinely
+#     removes a person/model from the photo via a prompt, keeping just
+#     the garment on a clean background. USE THIS if uploaded photos
+#     are on-model rather than flat-lay. Needs BG_REMOVAL_API_KEY (a
+#     real Gemini API key — same one used for AI_VISION_PROVIDER below
+#     works fine here too) and optionally BG_REMOVAL_GEMINI_MODEL.
+#
+# Previously there was also a free 'garment_segmentation' option (a
+# public Hugging Face Space) — removed. It was slow (15-45+s per
+# image), had no uptime guarantee, and lower accuracy than a real
+# production model. Gemini does the same on-model-photo job properly.
+#
+# CONFIRMED: on-model item photos, so set to gemini.
+BG_REMOVAL_PROVIDER=gemini
+BG_REMOVAL_API_KEY=AQ.Ab8RN6Is3zAg6W4JlJeAE7Rv_YO1GqOkVqownX6ilgahbQ0Zdg
+# gemini-2.5-flash-image ("Nano Banana") was the original pick here for
+# cost, but Google has DEPRECATED it — official shutdown Oct 2, 2026.
+# Migrated to gemini-3.1-flash-lite-image ("Nano Banana 2 Lite")
+# instead of the full gemini-3.1-flash-image: confirmed via Google's
+# own pricing page it's actually CHEAPER than the old 2.5 model
+# ($0.0336/image vs $0.039) and ~2.7x faster, while the full 3.1 Flash
+# Image costs roughly 1.7x more for 4K/Pro-tier quality this narrow
+# task (isolate a garment, drop the person, transparent background)
+# doesn't need. If Lite starts producing worse results than 2.5 did on
+# tricky photos, gemini-3.1-flash-image is the one-line upgrade.
+BG_REMOVAL_GEMINI_MODEL=gemini-3.1-flash-image
+
+--- AI provider (Ara's outfit story + chat replies) ---
+# CONFIRMED: GPT-5 mini via a DIRECT OpenAI API key (not OpenRouter —
+# earlier drafts of this file pointed at OpenRouter's endpoint, but a
+# directly-purchased OpenAI key only authenticates against OpenAI's own
+# API, not OpenRouter's. Sending a direct key to OpenRouter's URL fails
+# auth even though the model name looks similar — this is why chat was
+# returning "Missing Authentication header" errors: OpenRouter was
+# never getting a header it could recognize as one of its own keys, or
+# fell back to a case where no header was sent depending on how it
+# was misconfigured. Fixed by pointing straight at OpenAI here instead.
+# Note the model name also drops the "openai/" prefix — that prefix is
+# OpenRouter-specific routing syntax, OpenAI's own API doesn't use it.
+# REQUIRED — without a real key here, EVERYTHING AI-related (chat
+# replies, outfit stories, "how Ara thought about it") silently runs
+# on the canned fallback text further down in aiStylist.service.ts
+# instead. That fallback is deliberately serviceable, not a bug, but
+# it's also why chat can feel repetitive/robotic if this is still blank.
+AI_PROVIDER_API_KEY=sk-proj-zvkeVgtK46-WNE0brx87hVzI38tX3Mr7XP7AvHQbQwd-z958_xbh1Q4YkCfBqNnu7EwLMkXfaT3BlbkFJIdzxg6esZQ4CihQwSJWAh_fpHt73tjJzA0Rejaqy6LdiA-iVJRZ8e2PN1A8nGUt9rZY9kdffcA
+AI_PROVIDER_BASE_URL=https://api.openai.com/v1
+AI_PROVIDER_MODEL=gpt-5-mini
+
+# --- Fallback AI provider ---
+# If the primary provider above fails or times out, this second one is
+# tried automatically before falling back to canned responses. Leave
+# ALL THREE blank to run single-provider mode (primary -> canned text).
+# CONFIRMED: Gemini 3.1 Flash-Lite as secondary, so GPT-5 mini (primary)
+# -> Gemini 3.1 Flash-Lite (fallback) -> canned text. Gemini 2.5 Flash
+# was an earlier default here but Google is shutting it down
+# 2026-10-16 — 3.1 Flash-Lite is the closer-priced replacement ($0.25/M
+# in, $1.50/M out vs 2.5 Flash's old $0.30/$2.50; Gemini 3.5 Flash also
+# works but costs ~5x more on input for this app's usage pattern, which
+# doesn't need the extra headroom).
+# Fill in AI_FALLBACK_API_KEY with a real Gemini API key to activate this.
+AI_FALLBACK_API_KEY=AQ.Ab8RN6Is3zAg6W4JlJeAE7Rv_YO1GqOkVqownX6ilgahbQ0Zdg
+AI_FALLBACK_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+AI_FALLBACK_MODEL=gemini-3.1-flash-lite
+
+# --- Vision provider for AI Color Analysis (selfie -> skin undertone) ---
+# and the tag scanner (photo of a garment label -> brand/size/material).
+# Needs a model that actually supports image input as well as text
+# output — GPT-5 mini's vision support isn't confirmed, so this is kept
+# as a separate config rather than assumed to work via AI_PROVIDER_*.
+# CONFIRMED: Gemini 3.1 Flash-Lite as primary vision provider.
+# Fill in AI_VISION_PROVIDER_API_KEY with a real Gemini key to activate.
+# Until a real key is set here, every color analysis returns the same
+# "unknown" undertone + neutral-colors fallback — this is that fallback
+# working as designed, not a bug, but it looks broken to a user because
+# it can't say why it's guessing.
+#
+# IMPORTANT: a "Gemini API Key" name + a Google Cloud project number
+# (e.g. "projects/790874505274") are NOT the API key itself — those are
+# just identifiers. The actual key is a separate string that looks like
+# "AIzaSy..." — grab it from Google AI Studio (aistudio.google.com/app/apikey)
+# or the Cloud Console's "APIs & Services > Credentials" page, then
+# paste THAT string below, not the project number.
+AI_VISION_PROVIDER_API_KEY=AQ.Ab8RN6Is3zAg6W4JlJeAE7Rv_YO1GqOkVqownX6ilgahbQ0Zdg
+AI_VISION_PROVIDER_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+AI_VISION_PROVIDER_MODEL=gemini-3.1-flash-lite
+
+# --- Vision fallback ---
+# If the vision primary above fails or times out, this tries GPT-5 mini
+# before returning the static "unknown undertone" fallback. Same
+# optional-chain pattern as AI_FALLBACK for chat: leave this blank to
+# run vision in single-provider mode.
+# CONFIRMED: GPT-5 mini as vision backup, via a DIRECT OpenAI key — same
+# fix as AI_PROVIDER above (this app has a real OpenAI key, not an
+# OpenRouter one, so this needs OpenAI's own endpoint, not OpenRouter's).
+# Reuses the SAME key as AI_PROVIDER_API_KEY above — one OpenAI key
+# covers both slots, no separate purchase needed. Its image-input
+# support isn't independently confirmed the way GLM's wasn't either, so
+# treat this as best-effort; if GPT-5 mini can't actually read images,
+# this fallback will just fail silently and drop to the static
+# fallback, same as any other misconfigured/incompatible provider would.
+AI_VISION_FALLBACK_API_KEY=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
+AI_VISION_FALLBACK_BASE_URL=https://api.openai.com/v1
+AI_VISION_FALLBACK_MODEL=gpt-5-mini
+
+# --- Monitoring ---
+SENTRY_DSN=
+
+# --- Bin retention ---
+# 30 days, enforced by the binCleanup scheduled Lambda (infra/serverless.yml)
+# — not configurable via env, hardcoded per the confirmed policy.

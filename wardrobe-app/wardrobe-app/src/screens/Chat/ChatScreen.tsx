@@ -86,23 +86,17 @@ export default function ChatScreen() {
     ]);
   };
 
-  // Attachment — picks a photo and actually sends it to Ara now (not
-  // just a "[+ photo attached]" text marker with nothing behind it).
-  // base64: true asks the picker to hand back the image data directly
-  // rather than just a local file URI, which is what actually lets it
-  // travel to the backend and reach the vision model.
-  const [attachedPhotoDataUri, setAttachedPhotoDataUri] = useState<string | null>(null);
+  // Attachment — picks a photo to reference in the message.
+  // HONEST NOTE: the photo is attached and shown in the conversation,
+  // but the AI does NOT currently "see"/analyze the image — that needs
+  // a vision-capable model call (sending image data alongside text),
+  // which isn't wired up yet. Right now it just adds "[+ photo]" as a
+  // text marker so Ara's reply can't actually reference what's in it.
   const pickAttachment = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return Alert.alert('Permission needed', 'Allow photo access to attach an image.');
-    const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.6, base64: true });
-    if (result.canceled) return;
-    const asset = result.assets[0];
-    setAttachedPhoto(asset.uri);
-    if (asset.base64) {
-      const mime = asset.mimeType ?? 'image/jpeg';
-      setAttachedPhotoDataUri(`data:${mime};base64,${asset.base64}`);
-    }
+    const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.6 });
+    if (!result.canceled) setAttachedPhoto(result.assets[0].uri);
   };
 
   // Voice input — real speech-to-text needs a native module
@@ -132,11 +126,16 @@ export default function ChatScreen() {
 
   const send = async (text: string) => {
     if (!text.trim() && !attachedPhoto) return;
-    const finalText = attachedPhoto ? `${text} [+ photo attached]` : text;
-    const photoToSend = attachedPhotoDataUri;
+    // Bug fix: this used to just append "[+ photo attached]" to the
+    // text and never actually send the image anywhere, so Ara could
+    // never really "see" it. The photo itself (attachedPhoto) is now
+    // uploaded and passed to sendChatMessage, which the backend hands
+    // to a real vision model — the "[+ photo attached]" text is kept
+    // only as a readable label on the optimistic bubble shown here.
+    const photoToSend = attachedPhoto;
+    const finalText = photoToSend ? `${text} [+ photo attached]` : text;
     setInput('');
     setAttachedPhoto(null);
-    setAttachedPhotoDataUri(null);
 
     const optimisticMessage = { id: `local-${Date.now()}`, role: 'user', text: finalText };
     setMessages((prev) => [...prev, optimisticMessage]);
@@ -144,11 +143,7 @@ export default function ChatScreen() {
     scrollDown();
 
     try {
-      // Bug: the actual photo never left the phone before — only the
-      // text "[+ photo attached]" was sent, so Ara replied to a string
-      // and could never really see what was attached. The real image
-      // data now goes along with the message.
-      await sendChatMessage(finalText, photoToSend);
+      await sendChatMessage(text, photoToSend);
       await load();
     } catch (e: any) {
       // Previously `catch {}` here — a real silent failure. If sending
@@ -283,7 +278,7 @@ export default function ChatScreen() {
         {attachedPhoto && (
           <View style={styles.attachmentPreview}>
             <Image source={{ uri: attachedPhoto }} style={styles.attachmentThumb} />
-            <TouchableOpacity onPress={() => { setAttachedPhoto(null); setAttachedPhotoDataUri(null); }} style={styles.attachmentRemove}>
+            <TouchableOpacity onPress={() => setAttachedPhoto(null)} style={styles.attachmentRemove}>
               <FigmaIcon name="close" size={11} color={colors.white} />
             </TouchableOpacity>
           </View>

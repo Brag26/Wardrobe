@@ -13,14 +13,6 @@ import { FigmaIcon } from './icons/FigmaIcon';
 import { spacing } from '../theme/theme';
 import { useAppTheme } from '../theme/ThemeContext';
 
-// The page title sits to the right of the back button + gap, not flush
-// against the screen edge like everything else on a page normally is.
-// Content below the header (search bars, section labels, chip rows,
-// grids) should start at this same x position so it visually lines up
-// with the title above it, instead of starting further left and
-// looking misaligned/"away from" the heading.
-export const PAGE_TITLE_LEFT = spacing.lg + 34 + spacing.sm; // paddingHorizontal + back button width + gap
-
 export function PageHeader({ title }: { title: string }) {
   const navigation = useNavigation<any>();
   const { colors, type } = useAppTheme();

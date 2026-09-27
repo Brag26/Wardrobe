@@ -32,7 +32,9 @@ const FALLBACK_SEASONS = ['summer', 'autumn', 'winter', 'monsoon', 'spring', 'al
 
 function itemToForm(item: any): ItemFormValues {
   return {
-    name: item.name ?? '', category: item.category ?? null, color: item.color ?? null,
+    // Backend stores one comma-joined string — split it back out
+    // into the chips the multi-select form expects.
+    name: item.name ?? '', category: item.category ?? null, color: item.color ? item.color.split(',').map((c: string) => c.trim()).filter(Boolean) : [],
     occasionTags: item.occasionTags ?? [], style: item.style ?? null, season: item.season ?? null,
     rating: item.rating ?? null, brand: item.brand ?? '', price: item.price != null ? String(item.price) : '',
     size: item.size ?? '', material: item.material ?? '',
@@ -127,11 +129,11 @@ export default function ItemDetailsScreen() {
   };
 
   const handleSaveEdit = async () => {
-    if (!form.category || !form.color) return Alert.alert('Missing info', 'Category and color are required.');
+    if (!form.category || form.color.length === 0) return Alert.alert('Missing info', 'Category and color are required.');
     setSaving(true);
     try {
       const updated = await updateWardrobeItem(itemId, {
-        name: form.name.trim() || null, category: form.category, color: form.color,
+        name: form.name.trim() || null, category: form.category, color: form.color.join(', '),
         occasionTags: form.occasionTags, style: form.style, season: form.season, rating: form.rating,
         brand: form.brand.trim() || null, price: form.price ? Number(form.price) : null,
         size: form.size.trim() || null, material: form.material.trim() || null,

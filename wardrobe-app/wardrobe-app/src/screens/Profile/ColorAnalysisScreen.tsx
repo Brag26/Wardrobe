@@ -4,7 +4,7 @@
 // (see aiStylist.service.ts's scoreItem color bonus), not just stored
 // and forgotten.
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,12 +15,34 @@ import { getProfile, submitColorAnalysis } from '../../api/wardrobeApi';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
 
+// The AI color-analysis result returns free-form, often multi-word color
+// descriptions ("Warm Navy", "Olive Green", "Cool Pastels", "Ash Gray") —
+// not the fixed single-word palette the rest of the app uses for closet
+// items. A flat exact-match map only ever covered a handful of single
+// words, so most of these came back unmatched and rendered as a plain
+// grey placeholder circle. getColorHex() below does exact match first,
+// then falls back to matching any word inside the phrase, so "Warm Navy"
+// still resolves via "navy" and "Ash Gray" via "gray".
 const COLOR_HEX: Record<string, string> = {
   black: '#2a2a2a', white: '#eee', cream: '#efe6d3', red: '#b13c3c', pink: '#e8a0b8',
-  navy: '#213258', green: '#3f6b3f', blue: '#3a5fa0', beige: '#d8c7a8', grey: '#8a8a8a',
+  navy: '#213258', green: '#3f6b3f', blue: '#3a5fa0', beige: '#d8c7a8', grey: '#8a8a8a', gray: '#8a8a8a',
   brown: '#6b4a30', burgundy: '#6b2f3a', olive: '#6b6b3a', orange: '#d97b3f', yellow: '#e5c15c',
   purple: '#7b4fa0', teal: '#2f7a7a', gold: '#c9a227', silver: '#c0c0c0', coral: '#e8836a',
+  mustard: '#c9a227', turquoise: '#30bfbf', mint: '#a8d5ba', sage: '#9caf88', lavender: '#c3b1e1',
+  tan: '#c8a97e', chocolate: '#4a2f1f', maroon: '#6b2f3a', rust: '#b1552f', emerald: '#2f8a5f',
+  cobalt: '#1f4fa0', charcoal: '#3a3a3a', ivory: '#f2ecd8', pastel: '#d9c9e0', peach: '#f0b89a',
+  fuchsia: '#c23b8a', khaki: '#9a8f5c',
 };
+
+function getColorHex(label: string): string {
+  const clean = label.trim().toLowerCase();
+  if (COLOR_HEX[clean]) return COLOR_HEX[clean];
+  const words = clean.split(/\s+/);
+  for (const word of words) {
+    if (COLOR_HEX[word]) return COLOR_HEX[word];
+  }
+  return '#999';
+}
 
 export default function ColorAnalysisScreen() {
   const { colors, type } = useAppTheme();
@@ -54,63 +76,73 @@ export default function ColorAnalysisScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Same fix as Body Type: the outer container no longer adds its own
+          padding around ScreenHeader, so the back button lines up with
+          every other page instead of sitting further in. The body below
+          is now scrollable too — previously it was a fixed, non-scrolling
+          view, so the undertone explanation and the "Recommended for
+          you" / "Best to avoid" palettes could run past the bottom of
+          the screen and end up hidden behind the tab bar. */}
       <ScreenHeader title="Color Analysis" />
-      <Text style={styles.subtitle}>
-        Upload a clear, well-lit selfie — Ara reads your undertone and suggests colors that'll actually work for you, and starts weighing them into outfit picks automatically.
-      </Text>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.subtitle}>
+          Upload a clear, well-lit selfie — Ara reads your undertone and suggests colors that'll actually work for you, and starts weighing them into outfit picks automatically.
+        </Text>
 
-      <TouchableOpacity style={styles.photoBox} onPress={pickPhoto} activeOpacity={0.85}>
-        {photoUri ? <Image source={{ uri: photoUri }} style={styles.photo} /> : (
-          <View style={{ alignItems: 'center' }}>
-            <FigmaIcon name="camera" size={26} color={colors.inkMuted} />
-            <Text style={[styles.photoPlaceholder, { marginTop: 4 }]}>Tap to add a selfie</Text>
+        <TouchableOpacity style={styles.photoBox} onPress={pickPhoto} activeOpacity={0.85}>
+          {photoUri ? <Image source={{ uri: photoUri }} style={styles.photo} /> : (
+            <View style={{ alignItems: 'center' }}>
+              <FigmaIcon name="camera" size={26} color={colors.inkMuted} />
+              <Text style={[styles.photoPlaceholder, { marginTop: 4 }]}>Tap to add a selfie</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        {photoUri && (
+          <Button label="Analyze my colors" onPress={runAnalysis} loading={analyzing} />
+        )}
+
+        {analyzing && <Text style={styles.analyzingNote}>This can take up to 20 seconds — real vision analysis, not instant.</Text>}
+
+        {result && !analyzing && (
+          <View style={styles.resultCard}>
+            <Text style={styles.undertone}>{result.undertone?.toUpperCase()} undertone</Text>
+            <Text style={styles.explanation}>{result.explanation}</Text>
+
+            <Text style={styles.sectionLabel}>Recommended for you</Text>
+            <View style={styles.swatchRow}>
+              {(result.recommendedColors ?? []).map((c: string) => (
+                <View key={c} style={styles.swatchWrap}>
+                  <View style={[styles.swatch, { backgroundColor: getColorHex(c) }]} />
+                  <Text style={styles.swatchLabel}>{c}</Text>
+                </View>
+              ))}
+            </View>
+
+            {result.avoidColors?.length > 0 && (
+              <>
+                <Text style={styles.sectionLabel}>Best to avoid</Text>
+                <View style={styles.swatchRow}>
+                  {result.avoidColors.map((c: string) => (
+                    <View key={c} style={styles.swatchWrap}>
+                      <View style={[styles.swatch, styles.swatchAvoid, { backgroundColor: getColorHex(c) }]} />
+                      <Text style={styles.swatchLabel}>{c}</Text>
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
           </View>
         )}
-      </TouchableOpacity>
-
-      {photoUri && (
-        <Button label="Analyze my colors" onPress={runAnalysis} loading={analyzing} />
-      )}
-
-      {analyzing && <Text style={styles.analyzingNote}>This can take up to 20 seconds — real vision analysis, not instant.</Text>}
-
-      {result && !analyzing && (
-        <View style={styles.resultCard}>
-          <Text style={styles.undertone}>{result.undertone?.toUpperCase()} undertone</Text>
-          <Text style={styles.explanation}>{result.explanation}</Text>
-
-          <Text style={styles.sectionLabel}>Recommended for you</Text>
-          <View style={styles.swatchRow}>
-            {(result.recommendedColors ?? []).map((c: string) => (
-              <View key={c} style={styles.swatchWrap}>
-                <View style={[styles.swatch, { backgroundColor: COLOR_HEX[c] ?? '#999' }]} />
-                <Text style={styles.swatchLabel}>{c}</Text>
-              </View>
-            ))}
-          </View>
-
-          {result.avoidColors?.length > 0 && (
-            <>
-              <Text style={styles.sectionLabel}>Best to avoid</Text>
-              <View style={styles.swatchRow}>
-                {result.avoidColors.map((c: string) => (
-                  <View key={c} style={styles.swatchWrap}>
-                    <View style={[styles.swatch, styles.swatchAvoid, { backgroundColor: COLOR_HEX[c] ?? '#999' }]} />
-                    <Text style={styles.swatchLabel}>{c}</Text>
-                  </View>
-                ))}
-              </View>
-            </>
-          )}
-        </View>
-      )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 function makeStyles(colors: any, type: any) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.bg, padding: spacing.lg },
+    container: { flex: 1, backgroundColor: colors.bg },
+    content: { padding: spacing.lg, paddingBottom: spacing.xl },
     subtitle: { ...type.muted, marginBottom: spacing.md, lineHeight: 17 },
     photoBox: {
       height: 220, borderRadius: radius.lg, backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border,

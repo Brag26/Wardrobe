@@ -10,11 +10,20 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar, DateData } from 'react-native-calendars';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { ScreenHeader } from '../../components/ScreenHeader';
+import { PageHeader } from '../../components/PageHeader';
 import { ItemThumb } from '../../components/ItemThumb';
-import { listCalendarMonth, getTodayOutfit } from '../../api/wardrobeApi';
+import { listCalendarMonth, getTodayOutfitIfSet } from '../../api/wardrobeApi';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
+
+// 2x2 grid positions for up to 4 outfit-piece thumbnails inside the
+// 40x40 dayCollage box (each thumb is 20x20).
+const DAY_COLLAGE_POSITIONS = [
+  { top: 0, left: 0 },
+  { top: 0, left: 20 },
+  { top: 20, left: 0 },
+  { top: 20, left: 20 },
+];
 
 function todayString() {
   return new Date().toISOString().slice(0, 10);
@@ -43,10 +52,15 @@ export default function CalendarScreen() {
     } catch {}
   }, []);
 
+  // Read-only: shows today's outfit if one is already assigned (set via
+  // Home's button or picked manually for today), but never generates and
+  // auto-assigns a new one just from the Calendar tab being opened — that
+  // used to happen here, so "Today's Outfit" could show a pick the person
+  // never actually made or asked for yet.
   const loadTodayOutfit = useCallback(async () => {
     setOotdLoading(true);
     try {
-      const result = await getTodayOutfit();
+      const result = await getTodayOutfitIfSet();
       setTodayOutfit(result.outfit ?? null);
       setTodayItems(result.items ?? []);
     } catch (e: any) {
@@ -79,9 +93,9 @@ export default function CalendarScreen() {
         </Text>
         {entry?.previewItems?.length > 0 && (
           <View style={styles.dayCollage}>
-            {entry.previewItems.slice(0, 2).map((it: any, idx: number) => (
-              <View key={it.id ?? idx} style={[styles.dayCollagePiece, idx === 1 && styles.dayCollagePieceOffset]}>
-                <ItemThumb item={it} size={26} noBorder />
+            {entry.previewItems.slice(0, 4).map((it: any, idx: number) => (
+              <View key={it.id ?? idx} style={[styles.dayCollagePiece, DAY_COLLAGE_POSITIONS[idx]]}>
+                <ItemThumb item={it} size={20} noBorder />
               </View>
             ))}
           </View>
@@ -92,7 +106,7 @@ export default function CalendarScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScreenHeader title="Calendar" />
+      <PageHeader title="Calendar" />
       <Text style={[type.muted, { paddingHorizontal: spacing.lg, marginBottom: spacing.sm }]}>
         Tap any date to log or plan your outfit for that day.
       </Text>
@@ -153,9 +167,12 @@ function makeStyles(colors: any) {
     dayNumber: { fontSize: 12, color: colors.ink, fontWeight: '500' },
     dayNumberMuted: { color: colors.border },
     dayNumberToday: { color: colors.lavenderDeep, fontWeight: '700' },
-    dayCollage: { width: 40, height: 34, marginTop: 2, position: 'relative' },
-    dayCollagePiece: { position: 'absolute', top: 0, left: 4 },
-    dayCollagePieceOffset: { top: 8, left: 14 },
+    // Was a 2-piece diagonal stack that only ever showed the outfit's
+    // first two items even when it had 4-5. Now a compact 2x2 grid so
+    // every day cell reflects the whole outfit (backend now sends up
+    // to 4 preview items instead of capping at 2).
+    dayCollage: { width: 40, height: 40, marginTop: 2, position: 'relative' },
+    dayCollagePiece: { position: 'absolute' },
     todaySectionTitle: { fontSize: 14, fontWeight: '700', color: colors.ink, paddingHorizontal: spacing.lg, marginTop: spacing.lg, marginBottom: spacing.sm },
     todayCard: {
       flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border,

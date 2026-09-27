@@ -16,7 +16,7 @@ import { useAppTheme } from '../theme/ThemeContext';
 export interface ItemFormValues {
   name: string;
   category: string | null;
-  color: string | null;
+  color: string[]; // was a single string — see the Color section below
   occasionTags: string[];
   style: string | null;
   season: string | null;
@@ -28,7 +28,7 @@ export interface ItemFormValues {
 }
 
 export const EMPTY_ITEM_FORM: ItemFormValues = {
-  name: '', category: null, color: null, occasionTags: [], style: null, season: null,
+  name: '', category: null, color: [], occasionTags: [], style: null, season: null,
   rating: null, brand: '', price: '', size: '', material: '',
 };
 
@@ -161,10 +161,20 @@ export function ItemDetailsForm({
         })
       )}
 
+      {/* Bug: this only ever let you pick one color, even for a
+          genuinely multicolor item (florals, color-block pieces).
+          Toggles like occasionTags below now, instead of replacing
+          the selection on every tap. */}
       <Text style={[type.h3, { marginTop: spacing.md, marginBottom: spacing.sm }]}>Color</Text>
       <View style={styles.pillRow}>
         {colorOptions.map((c) => (
-          <TagPill key={c} label={c} selected={value.color === c} onPress={() => onChange({ color: c })} dotColor={COLOR_SWATCHES[c]} />
+          <TagPill
+            key={c}
+            label={c}
+            selected={value.color.includes(c)}
+            onPress={() => onChange({ color: value.color.includes(c) ? value.color.filter((x) => x !== c) : [...value.color, c] })}
+            dotColor={COLOR_SWATCHES[c]}
+          />
         ))}
       </View>
 

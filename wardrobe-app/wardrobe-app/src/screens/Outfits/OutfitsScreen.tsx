@@ -8,7 +8,7 @@ import { collageLayout } from '../../utils/outfitCollage';
 import { CreateOutfitIllustration } from '../../components/illustrations/EmptyStateIllustrations';
 import { ItemThumb } from '../../components/ItemThumb';
 import { FilterPanel, FilterValues } from '../../components/FilterPanel';
-import { PageHeader, PAGE_TITLE_LEFT } from '../../components/PageHeader';
+import { PageHeader } from '../../components/PageHeader';
 import { spacing, radius } from '../../theme/theme';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { AppIcon } from '../../components/icons/AppIcons';
@@ -168,7 +168,11 @@ export default function OutfitsScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <PageHeader title="My Outfits" />
       <View style={styles.header}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: spacing.xs, flexShrink: 1, marginLeft: 'auto' }}>
+        {/* Same single-row, no-wrap layout as Closet's header row — this
+            used to wrap onto a second line on narrower screens, which
+            broke the straight horizontal alignment with "My Outfits". */}
+        <View style={{ flex: 1 }} />
+        <View style={{ flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'flex-end', alignItems: 'center', gap: spacing.xs }}>
           <TouchableOpacity style={styles.filterButton} onPress={() => setFilterPanelOpen(true)}>
             <FigmaIcon name="filter" size={13} color={colors.ink} />
             {activeFilterCount > 0 && <Text style={styles.filterButtonText}> {activeFilterCount}</Text>}
@@ -204,7 +208,7 @@ export default function OutfitsScreen() {
         keyExtractor={(o) => o.id}
         numColumns={2}
         style={{ flex: 1 }}
-        columnWrapperStyle={{ gap: spacing.sm, paddingLeft: PAGE_TITLE_LEFT, paddingRight: spacing.lg }}
+        columnWrapperStyle={{ gap: spacing.sm, paddingHorizontal: spacing.lg }}
         contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.lg }}
         ListEmptyComponent={
           outfitsLoading && !hasLoadedOnce ? (
@@ -336,7 +340,7 @@ export default function OutfitsScreen() {
                   </View>
                 ) : shown.length > 1 ? (
                   collageLayout(shown).map((pos, idx) => (
-                    <View key={idx} style={[styles.collagePiece, { top: pos.top, left: pos.left }]}>
+                    <View key={idx} style={[styles.collagePiece, { top: pos.top, left: pos.left, zIndex: pos.zIndex }]}>
                       <ItemThumb item={shown[idx]} size={pos.thumbSize} noBorder />
                     </View>
                   ))
@@ -416,8 +420,8 @@ function makeStyles(colors: any, type: any) {
   return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
-    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center',
-    paddingLeft: PAGE_TITLE_LEFT, paddingRight: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md, rowGap: spacing.sm,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md,
   },
   title: { ...type.h1 },
   filterButton: { backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, width: 34, height: 34, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
@@ -426,10 +430,7 @@ function makeStyles(colors: any, type: any) {
   packButtonText: { fontWeight: '600', fontSize: 12, color: colors.ink },
   addButton: { backgroundColor: colors.black, borderRadius: radius.pill, paddingVertical: 8, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center' },
   addButtonText: { color: colors.white, fontWeight: '600', fontSize: 12 },
-  // Bug: same left/right padding as the plain screen edge, while the
-  // page title above starts further right (past the back button) —
-  // left edge now matches the title instead of sitting to its left.
-  packingHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingLeft: PAGE_TITLE_LEFT, paddingRight: spacing.lg, marginBottom: spacing.sm },
+  packingHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
   packingSectionTitle: { ...type.h3 },
   packingViewAll: { fontSize: 12, color: colors.inkMuted },
   packingCard: { width: 130, backgroundColor: colors.bgSoft, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.sm },
@@ -446,10 +447,10 @@ function makeStyles(colors: any, type: any) {
   // list scrolls all the way to the end of the last chip.
   tabList: {
     flexGrow: 0, maxHeight: 52, marginBottom: spacing.sm,
-    marginLeft: PAGE_TITLE_LEFT, marginRight: spacing.lg, backgroundColor: colors.bgSoft, borderRadius: radius.pill,
+    marginHorizontal: spacing.lg, backgroundColor: colors.bgSoft, borderRadius: radius.pill,
     borderWidth: 1, borderColor: colors.border, overflow: 'hidden',
   },
-  sectionLabel: { fontSize: 12, fontWeight: '700', color: colors.inkMuted, paddingLeft: PAGE_TITLE_LEFT, paddingRight: spacing.lg, marginTop: spacing.xs, marginBottom: spacing.sm, textTransform: 'uppercase', letterSpacing: 0.3 },
+  sectionLabel: { fontSize: 12, fontWeight: '700', color: colors.inkMuted, paddingHorizontal: spacing.lg, marginTop: spacing.xs, marginBottom: spacing.sm, textTransform: 'uppercase', letterSpacing: 0.3 },
   tabRow: { paddingHorizontal: 6, paddingVertical: 6, gap: spacing.xs, alignItems: 'center' },
   tab: { paddingVertical: 5, paddingHorizontal: spacing.sm, borderRadius: radius.pill, backgroundColor: 'transparent', marginRight: 2 },
   tabActive: { backgroundColor: colors.black },

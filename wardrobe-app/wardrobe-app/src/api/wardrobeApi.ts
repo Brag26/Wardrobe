@@ -163,6 +163,24 @@ function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs: num
   return Promise.race([fetch(url, options), timeoutPromise]);
 }
 
+// A failed S3 PUT resolves as an ordinary Response with ok:false — it
+// never throws — so every call site that did `await fetchWithTimeout(uploadUrl,
+// { method: 'PUT', ... })` and moved on without checking `.ok` was
+// treating silent upload failures as successes. The item/chat-message
+// save that follows then references a photo that was never actually
+// written to S3: the backend either can't find it (HeadObject throws an
+// opaque AWS SDK error) or hands the vision model a URL that 404s, which
+// is why "add item" saves could fail with an unhelpful "UnknownError"
+// and why Ara's photo replies could come back generic, as if it never
+// saw the photo at all. Centralizing the upload here so every caller
+// gets the same real failure check.
+async function putPhotoToS3(uploadUrl: string, blob: Blob): Promise<void> {
+  const res = await fetchWithTimeout(uploadUrl, { method: 'PUT', body: blob, headers: { 'Content-Type': 'image/jpeg' } });
+  if (!res.ok) {
+    throw new Error(`Photo upload failed (${res.status}) — check your connection and try again.`);
+  }
+}
+
 async function authedFetch(path: string, options: RequestInit = {}) {
   const token = await getStoredToken();
   const res = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
@@ -246,18 +264,30 @@ export async function uploadWardrobeItem(
     method: 'POST', body: JSON.stringify({ fileExtension: 'jpg' }),
   });
 
-  // Uploading the actual photo bytes is best-effort — if reading the
-  // local file fails (this happens on some Android emulators/content://
-  // URIs) or the upload itself fails, the item still needs to save with
-  // its metadata. A real photo is a nice-to-have here, not a blocker.
+  // This used to swallow a failed PUT silently (the comment here called
+  // it "best effort") and still hand `key` to the /wardrobe/items save
+  // call below as if the photo were there. Two problems made that
+  // actually break saving instead of gracefully degrading:
+  //   1. A failed S3 PUT (bad/expired presigned URL, network blip, a
+  //      signature mismatch) resolves as a normal Response with
+  //      ok:false — it never throws — so the try/catch below never
+  //      caught it, and the code sailed on as if the upload worked.
+  //   2. The backend's POST /wardrobe/items requires s3Key and always
+  //      calls verifyUploadedPhotoSize(s3Key), which does an S3
+  //      HeadObject on it. If nothing was ever actually uploaded to
+  //      that key, HeadObject fails and the AWS SDK throws an opaque,
+  //      unhelpful "UnknownError" — exactly the "Could not save"
+  //      alert this was producing, with no indication the real cause
+  //      was an upload that silently failed.
+  // Now the PUT's status is actually checked, and a failure here throws
+  // a clear, actionable error immediately instead of limping forward
+  // into a guaranteed backend failure with a useless message.
   if (localImageUri) {
-    try {
-      const resizedUri = await resizeForUpload(localImageUri);
-      const photoBlob = await (await fetch(resizedUri)).blob();
-      await fetchWithTimeout(uploadUrl, { method: 'PUT', body: photoBlob, headers: { 'Content-Type': 'image/jpeg' } });
-    } catch (err) {
-      console.warn('[uploadWardrobeItem] Photo upload failed, saving item without a photo:', err);
-    }
+    const resizedUri = await resizeForUpload(localImageUri);
+    const photoBlob = await (await fetch(resizedUri)).blob();
+    await putPhotoToS3(uploadUrl, photoBlob);
+  } else {
+    throw new Error('Add a photo of the item before saving.');
   }
 
   return authedFetch('/wardrobe/items', { method: 'POST', body: JSON.stringify({ itemId, s3Key: key, ...meta }) });
@@ -282,7 +312,7 @@ export async function replaceItemPhoto(itemId: string, localImageUri: string) {
   });
   const resizedUri = await resizeForUpload(localImageUri);
   const photoBlob = await (await fetch(resizedUri)).blob();
-  await fetchWithTimeout(uploadUrl, { method: 'PUT', body: photoBlob, headers: { 'Content-Type': 'image/jpeg' } });
+  await putPhotoToS3(uploadUrl, photoBlob);
   return authedFetch(`/wardrobe/items/${itemId}/photo`, { method: 'POST', body: JSON.stringify({ s3Key: key }) });
 }
 export const moveItemToBin = (id: string) => authedFetch(`/wardrobe/items/${id}`, { method: 'DELETE' });
@@ -300,7 +330,7 @@ export const reorderWardrobeItems = (orderedIds: string[]) =>
 export async function scanItemTag(localImageUri: string) {
   const { key: s3Key, uploadUrl } = await authedFetch('/wardrobe/upload-url', { method: 'POST', body: JSON.stringify({ fileExtension: 'jpg' }) });
   const photoBlob = await (await fetch(localImageUri)).blob();
-  await fetchWithTimeout(uploadUrl, { method: 'PUT', body: photoBlob, headers: { 'Content-Type': 'image/jpeg' } });
+  await putPhotoToS3(uploadUrl, photoBlob);
   return authedFetch('/wardrobe/items/scan-tag', { method: 'POST', body: JSON.stringify({ s3Key }) });
 }
 
@@ -316,23 +346,40 @@ export async function uploadWardrobeItemsBulk(
     method: 'POST', body: JSON.stringify({ count: entries.length, fileExtension: 'jpg' }),
   });
 
+  // Bulk save requires a real photo per item (the backend's HeadObject
+  // check on s3Key isn't optional) — but one bad photo among a batch of
+  // N shouldn't sink the other N-1 that uploaded fine. Previously a
+  // failed PUT here was swallowed (try/catch that just logged a
+  // warning) and the item still went into the batch with a phantom
+  // s3Key, ending up in the same "UnknownError" state the single-item
+  // flow had. Now a failed upload actually drops just that one item
+  // from the batch — the rest still save.
+  const uploadFailed = new Set<number>();
   await Promise.all(
     entries.map(async (entry, idx) => {
-      if (!entry.localImageUri) return;
+      if (!entry.localImageUri) { uploadFailed.add(idx); return; }
       try {
         const resizedUri = await resizeForUpload(entry.localImageUri);
         const photoBlob = await (await fetch(resizedUri)).blob();
-        await fetchWithTimeout(urls[idx].uploadUrl, { method: 'PUT', body: photoBlob, headers: { 'Content-Type': 'image/jpeg' } });
+        await putPhotoToS3(urls[idx].uploadUrl, photoBlob);
       } catch (err) {
-        console.warn('[uploadWardrobeItemsBulk] Photo upload failed for one item, saving without a photo:', err);
+        console.warn(`[uploadWardrobeItemsBulk] Photo upload failed for item ${idx}, dropping it from this batch:`, err);
+        uploadFailed.add(idx);
       }
     })
   );
 
-  const items = entries.map((entry, idx) => ({
-    itemId: urls[idx].itemId, s3Key: urls[idx].key, ...entry.meta,
-  }));
-  return authedFetch('/wardrobe/items/bulk', { method: 'POST', body: JSON.stringify({ items }) });
+  const items = entries
+    .map((entry, idx) => ({ itemId: urls[idx].itemId, s3Key: urls[idx].key, ...entry.meta }))
+    .filter((_, idx) => !uploadFailed.has(idx));
+  if (items.length === 0) {
+    throw new Error('None of the photos could be uploaded — check your connection and try again.');
+  }
+  const saved = await authedFetch('/wardrobe/items/bulk', { method: 'POST', body: JSON.stringify({ items }) });
+  if (uploadFailed.size > 0) {
+    console.warn(`[uploadWardrobeItemsBulk] ${uploadFailed.size} of ${entries.length} item photo(s) failed to upload and were skipped.`);
+  }
+  return saved;
 }
 
 export const listOutfits = (category: string = 'all', filters: Record<string, string> = {}) => {
@@ -380,6 +427,12 @@ export const setCalendarDay = (date: string, outfitId: string, note?: string) =>
   authedFetch(`/calendar/${date}`, { method: 'PUT', body: JSON.stringify({ outfitId, note }) });
 export const deleteCalendarDay = (date: string) => authedFetch(`/calendar/${date}`, { method: 'DELETE' });
 export const getTodayOutfit = () => authedFetch('/calendar/today/outfit');
+// Read-only version — used by the Calendar screen, which should only ever
+// show today's outfit if one is already assigned, never silently generate
+// and auto-assign a brand new one just because the tab was opened. Only
+// Home's explicit "Outfit of the Day" button (getTodayOutfit above) may
+// trigger generation.
+export const getTodayOutfitIfSet = () => authedFetch('/calendar/today/outfit?generate=false');
 
 // ---------- Weather ----------
 // Proxied through our own backend — the app never calls a third-party
@@ -401,8 +454,31 @@ export const saveManualOutfit = (itemIds: string[]) =>
 
 export const getChatHistory = () => authedFetch('/chat/history');
 export const clearChatHistory = () => authedFetch('/chat/history', { method: 'DELETE' });
-export const sendChatMessage = (text: string, imageDataUri?: string | null) =>
-  authedFetch('/chat/message', { method: 'POST', body: JSON.stringify({ text, imageDataUri: imageDataUri ?? undefined }) });
+// Bug fix: an attached photo used to never actually reach the AI — the
+// app just appended "[+ photo attached]" as literal text. Now, if a
+// local photo URI is passed, it's uploaded first (same presigned-URL
+// flow as everything else) and its s3Key is sent along with the
+// message so the backend can hand the real image to a vision model.
+export async function sendChatMessage(text: string, localImageUri?: string | null) {
+  let s3Key: string | undefined;
+  if (localImageUri) {
+    const { key, uploadUrl } = await authedFetch('/wardrobe/upload-url', {
+      method: 'POST', body: JSON.stringify({ fileExtension: 'jpg' }),
+    });
+    const photoBlob = await (await fetch(localImageUri)).blob();
+    // Was unchecked here — a failed PUT (bad/expired presigned URL,
+    // dropped connection) went unnoticed, s3Key still got sent to
+    // /chat/message, and the backend built an imageUrl pointing at a
+    // photo that was never actually in S3. Ara's vision call then either
+    // 404'd fetching it or got nothing back, which is exactly what
+    // looked like "the AI can't recognize the photo" — it genuinely
+    // never saw it. Throwing here surfaces that as a real, actionable
+    // error instead of a silent no-op that still sends the message.
+    await putPhotoToS3(uploadUrl, photoBlob);
+    s3Key = key;
+  }
+  return authedFetch('/chat/message', { method: 'POST', body: JSON.stringify({ text, s3Key }) });
+}
 
 // ---------- Style Profile (body shape + AI color analysis) ----------
 

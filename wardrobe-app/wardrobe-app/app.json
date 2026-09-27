@@ -23,7 +23,8 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "package": "com.btv1.wardrobeapp"
+      "package": "com.btv1.wardrobeapp",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "bundler": "metro"
@@ -41,13 +42,19 @@
         {
           "locationWhenInUsePermission": "Used to show local weather for outfit suggestions."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Used to pick photos from your gallery when adding an item to your closet.",
+          "cameraPermission": "Used to take a photo when adding an item to your closet."
+        }
       ]
     ],
     "extra": {
       "eas": {
         "projectId": "1129a028-ce83-45fa-b171-b554a91c3967"
       }
-    },
-    "owner": "braga26s-team"
+    }
   }
 }

@@ -214,8 +214,6 @@ export default function HomeScreen() {
           style={styles.araBanner}
           activeOpacity={0.9}
           onPress={() => navigation.navigate('AraTab')}
-          onLongPress={() => navigation.navigate('Advanced', { screen: 'AdvancedHub' })}
-          delayLongPress={1200}
         >
           <View style={{ flex: 1 }}>
             <Text style={styles.araBannerLabel}>ARA MIX & MATCH</Text>
@@ -590,7 +588,7 @@ function makeStyles(colors: any, type: any) {
       backgroundColor: colors.card, borderRadius: radius.lg, marginHorizontal: spacing.lg,
       marginTop: spacing.lg, padding: spacing.md, ...cardShadow,
     },
-    sectionHeaderInCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
+    sectionHeaderInCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
     emptyStateInCard: { alignItems: 'center', paddingTop: spacing.sm },
     sectionTitleLoose: { paddingHorizontal: spacing.lg },
     // Illustrated empty states — matches the client reference exactly:
@@ -620,10 +618,7 @@ function makeStyles(colors: any, type: any) {
     // the pill's own border/padding (~26) are added up — it clipped a
     // couple of pixels off the bottom of the row, right where letter
     // descenders (g/y/j) live, cutting them off mid-glyph.
-    // Bug: no margin at all below this row, and only spacing.xs above
-    // it (see sectionHeaderInCard) — chips read as jammed between the
-    // heading and the content below with barely any breathing room.
-    tabList: { flexGrow: 0, maxHeight: 48, marginBottom: spacing.xs },
+    tabList: { flexGrow: 0, maxHeight: 48 },
     tabRow: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, gap: spacing.xs, alignItems: 'center' },
     tab: { paddingVertical: 5, paddingHorizontal: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, marginRight: 6 },
     tabActive: { backgroundColor: colors.lavender, borderColor: colors.lavenderDeep },

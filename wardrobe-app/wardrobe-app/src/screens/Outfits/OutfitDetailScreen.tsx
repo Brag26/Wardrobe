@@ -155,7 +155,7 @@ export default function OutfitDetailScreen() {
         <View style={styles.displayWrap}>
           {collageReady.length > 1 ? (
             positions.map((pos, idx) => (
-              <View key={collageReady[idx].id ?? idx} style={[styles.collagePiece, { top: pos.top, left: pos.left }]}>
+              <View key={collageReady[idx].id ?? idx} style={[styles.collagePiece, { top: pos.top, left: pos.left, zIndex: pos.zIndex }]}>
                 <ItemThumb item={collageReady[idx]} size={pos.thumbSize} noBorder />
               </View>
             ))

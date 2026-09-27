@@ -1,8 +1,8 @@
 // src/navigation/MainStackNavigator.tsx
 // Wraps the visible tab bar (Me/Journal/Goals/Fits/Club, plus the
-// not-in-the-bar Ara/Closet/Outfits/Chat tabs) plus the hidden Advanced
-// Studio section (long-press the Ara banner) — the only screen genuinely
-// outside the tab bar.
+// not-in-the-bar Ara/Closet/Outfits/Chat tabs). The Advanced Studio
+// section (previously reached via a long-press on the Ara banner) has
+// been removed per user request.
 //
 // Bug fix: Style Profile (Body Shape, Color Analysis) and the outfit
 // Calendar used to be registered TWICE — once as their own tabs inside
@@ -21,7 +21,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import RootTabNavigator from './RootTabNavigator';
-import AdvancedNavigator from './AdvancedNavigator';
 
 const Stack = createNativeStackNavigator();
 
@@ -29,7 +28,6 @@ export default function MainStackNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Tabs" component={RootTabNavigator} />
-      <Stack.Screen name="Advanced" component={AdvancedNavigator} />
     </Stack.Navigator>
   );
 }
