@@ -33,6 +33,17 @@ export default function RootTabNavigator() {
   return (
     <Tab.Navigator
       initialRouteName="HomeTab"
+      // Bug: with no backBehavior set, React Navigation's default tab
+      // history could send the hardware/gesture back button (which
+      // bubbles straight to this tab navigator, bypassing any screen's
+      // own header back-button logic, whenever a section's own nested
+      // stack has nothing left to pop) to whatever tab was focused
+      // before the current one — e.g. Me/Profile, if that's how the
+      // person happened to reach Outfits/Closet/Ara/Chat. "initialRoute"
+      // makes that always resolve to HomeTab (Fits) instead, regardless
+      // of which tab was visited previously — matching every section's
+      // own explicit "back to Fits" behavior (see PageHeader/ScreenHeader).
+      backBehavior="initialRoute"
       tabBar={(props) => <FigmaTabBar {...props} />}
       screenOptions={{ headerShown: false }}
     >

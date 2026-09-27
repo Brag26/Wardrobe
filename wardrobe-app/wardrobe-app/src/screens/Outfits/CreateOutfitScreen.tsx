@@ -64,6 +64,15 @@ export default function CreateOutfitScreen() {
   const [aesthetic, setAesthetic] = useState<string | null>(null);
   const [aesthetics, setAesthetics] = useState<string[]>(['clean_girl', 'old_money', 'y2k', 'streetwear', 'cottagecore', 'dark_academia', 'minimalist', 'preppy']);
   const [categories, setCategories] = useState<string[]>(['casual', 'formal', 'business', 'evening_wear', 'sport']);
+  // Bug: with a wardrobe that grows custom outfit categories over time,
+  // this used to render every single one as a flat, wrapping row of
+  // pills — fine at 5-6 categories, unusable once someone has a lot of
+  // them. Same fix as ItemDetailsForm's category picker (AddItemScreen):
+  // collapsed behind a single dropdown by default, tap to expand, with
+  // a search box that appears once there are enough categories to need
+  // one, instead of always showing every pill at once.
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
+  const [categorySearch, setCategorySearch] = useState('');
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(!editOutfitId);
   // A closet can have hundreds/thousands of items — showing every
@@ -89,6 +98,7 @@ export default function CreateOutfitScreen() {
       getOutfit(editOutfitId).then((o) => {
         setName(o.name ?? '');
         setCategory(o.category ?? null);
+        if (o.category) setCategoryPickerOpen(true);
         setAesthetic(o.aesthetic ?? null);
         setSelectedIds(o.itemIds ?? []);
         originalValues.current = { name: o.name ?? '', category: o.category ?? null, aesthetic: o.aesthetic ?? null, selectedIds: o.itemIds ?? [] };
@@ -120,7 +130,18 @@ export default function CreateOutfitScreen() {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const handleSave = async () => {
-    if (selectedIds.length === 0) return Alert.alert('There\'s no outfit yet', 'Select at least one piece of clothing to build this outfit.');
+    if (selectedIds.length === 0) {
+      // Distinguish "closet is empty" from "closet has items but none
+      // picked" — items is already fetched above for the picker grid,
+      // so no extra request is needed to tell these apart.
+      if (items.length === 0) {
+        return Alert.alert(
+          'There\'s no outfit yet',
+          'Your closet is empty, so there\'s nothing to build an outfit from. Add some items to your closet first.'
+        );
+      }
+      return Alert.alert('There\'s no outfit yet', 'Select at least one piece of clothing to build this outfit.');
+    }
     // Previously this let the user bypass naming entirely via a "Save
     // as 'Untitled outfit'" option — QA flagged this as confusing and
     // asked for a hard requirement instead: no name, no save, just a
@@ -214,10 +235,38 @@ export default function CreateOutfitScreen() {
           );
         })}
 
-        <Text style={styles.sectionLabel}>Category</Text>
-        <View style={styles.chipRow}>
-          {categories.map((c) => <Chip key={c} label={c.replace(/_/g, ' ')} emoji={CATEGORY_EMOJI[c]} selected={category === c} onPress={() => setCategory(c)} />)}
-        </View>
+        <TouchableOpacity style={styles.sectionHeader} onPress={() => setCategoryPickerOpen((o) => !o)} activeOpacity={0.7}>
+          <Text style={styles.sectionLabel}>
+            Category{category ? ` · ${category.replace(/_/g, ' ')}` : ''}
+          </Text>
+          <FigmaIcon name="chevronDown" size={16} color={colors.inkMuted} style={categoryPickerOpen ? styles.chevronExpanded : undefined} />
+        </TouchableOpacity>
+        {categoryPickerOpen && (
+          <View>
+            {categories.length > 12 && (
+              <TextInput
+                style={styles.categorySearchInput}
+                value={categorySearch}
+                onChangeText={setCategorySearch}
+                placeholder="Search categories"
+                placeholderTextColor={colors.inkMuted}
+              />
+            )}
+            <View style={styles.chipRow}>
+              {categories
+                .filter((c) => c.replace(/_/g, ' ').includes(categorySearch.trim().toLowerCase()))
+                .map((c) => (
+                  <Chip
+                    key={c}
+                    label={c.replace(/_/g, ' ')}
+                    emoji={CATEGORY_EMOJI[c]}
+                    selected={category === c}
+                    onPress={() => { setCategory(c); setCategoryPickerOpen(false); }}
+                  />
+                ))}
+            </View>
+          </View>
+        )}
 
         {/* Aesthetic/vibe tag — separate from Category on purpose: this
             is the trend vocabulary people actually describe a look
@@ -258,6 +307,10 @@ function makeStyles(colors: any, type: any) {
     marginTop: spacing.md, marginBottom: spacing.sm, paddingVertical: spacing.xs,
   },
   chevronExpanded: { transform: [{ rotate: '180deg' }] },
+  categorySearchInput: {
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: spacing.md,
+    paddingVertical: 10, fontSize: 13, color: colors.ink, backgroundColor: colors.bgSoft, marginBottom: spacing.sm,
+  },
   itemGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   itemTile: { alignItems: 'center', width: 84, position: 'relative' },
   itemLabel: { fontSize: 10.5, color: colors.inkMuted, marginTop: 4, textTransform: 'capitalize', textAlign: 'center' },

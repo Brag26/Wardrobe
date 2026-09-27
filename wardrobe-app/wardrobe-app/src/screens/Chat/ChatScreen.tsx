@@ -137,7 +137,13 @@ export default function ChatScreen() {
     setInput('');
     setAttachedPhoto(null);
 
-    const optimisticMessage = { id: `local-${Date.now()}`, role: 'user', text: finalText };
+    // Keep the actual picked-photo URI on the optimistic bubble too —
+    // previously only the "[+ photo attached]" text label was kept, so
+    // the pre-send preview (an actual thumbnail near the input bar)
+    // showed the real photo, but the moment it was "sent" the bubble
+    // fell back to just that text label with no image at all. That
+    // made it look like the photo itself had been dropped on send.
+    const optimisticMessage = { id: `local-${Date.now()}`, role: 'user', text: finalText, localPhotoUri: photoToSend };
     setMessages((prev) => [...prev, optimisticMessage]);
     setSending(true);
     scrollDown();
@@ -199,17 +205,16 @@ export default function ChatScreen() {
         </View>
       </View>
 
-      {/* Bug fix, round 2: giving Android its own KeyboardAvoidingView
-          "height" behavior turned out to be one fix too many. Expo
-          already resizes the window natively on Android (adjustResize)
-          when the keyboard opens, so layering "height" behavior on top
-          of that had the two compensating for the keyboard at once —
-          sometimes cancelling out (input visible), sometimes stacking
-          (input pushed too far, or the pad appearing to not show at
-          all because the input row was shoved off-screen). Android now
-          leaves it to the OS's native resize alone; only iOS, which
-          doesn't resize the window on its own, still needs "padding". */}
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
+      {/* This screen is nested inside a tab/stack navigator, which is a
+          well-known case where relying on Android's automatic
+          keyboard-resize behavior alone silently stops working — the
+          input row ends up hidden behind the keyboard with no visual
+          feedback while typing. Every other screen in this app with a
+          text input (AddItemScreen, OtpScreen, PhoneScreen, etc.) uses
+          the same `'padding'` / `'height'` KeyboardAvoidingView split
+          for that reason — matching that established, working pattern
+          here instead of leaving Android to the OS alone. */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView ref={scrollRef} style={styles.log} contentContainerStyle={{ padding: spacing.md }}>
           {messages.length === 0 && !sending && (
             <View style={styles.assistantRow}>
@@ -222,6 +227,9 @@ export default function ChatScreen() {
           {messages.map((m) => (
             m.role === 'user' ? (
               <View key={m.id} style={[styles.bubble, styles.userBubble]}>
+                {m.localPhotoUri && (
+                  <Image source={{ uri: m.localPhotoUri }} style={styles.sentPhotoThumb} />
+                )}
                 <Text style={[styles.bubbleText, styles.userText]}>{m.text}</Text>
               </View>
             ) : (
@@ -346,6 +354,7 @@ function makeStyles(colors: any, type: any) {
   pillText: { fontSize: 12, fontWeight: '500', color: colors.ink },
   attachmentPreview: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingBottom: spacing.xs },
   attachmentThumb: { width: 44, height: 44, borderRadius: radius.sm },
+  sentPhotoThumb: { width: 160, height: 160, borderRadius: radius.sm, marginBottom: spacing.xs },
   attachmentRemove: { marginLeft: -12, marginTop: -30, backgroundColor: colors.black, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   inputRow: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: spacing.xs, borderTopWidth: 1, borderTopColor: colors.border },
   iconButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
