@@ -176,7 +176,11 @@ async function checkCutoutQuality(buffer: Buffer): Promise<string | null> {
   try {
     const stats = await sharp(buffer).ensureAlpha().stats();
     const alphaChannel = stats.channels[stats.channels.length - 1];
-    const hasRealTransparency = alphaChannel.min === 0 && alphaChannel.std > 1;
+    // sharp's ChannelStats field is `stdev`, not `std` — the typo compiled
+    // fine locally against a looser/older @types snapshot but fails a
+    // clean `tsc` build against the actually-installed sharp 0.35.4
+    // types on Render, which is exactly what broke this deploy.
+    const hasRealTransparency = alphaChannel.min === 0 && alphaChannel.stdev > 1;
     const hasRealSubject = alphaChannel.max > 200 && alphaChannel.mean > 15;
     if (!hasRealTransparency) return "returned an image with no real transparency (background wasn't actually removed, just repainted).";
     if (!hasRealSubject) return 'returned an image with the garment erased too (almost entirely transparent, nothing solid left).';
