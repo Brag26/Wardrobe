@@ -447,6 +447,23 @@ async function runGeminiBackgroundRemoval(imageUrl: string, apiKey: string): Pro
     { model: fallbackModel, waitMs: 6000 },
     { model: secondFallbackModel, waitMs: 6000 },
   ];
+  // Root cause of "background removal isn't working at all": the
+  // deployed environment has BG_REMOVAL_GEMINI_MODEL set to
+  // gemini-3.1-flash-image — the exact model this file's own comment
+  // above already identified as reliably returning HTTP 400 on this API
+  // key. Since BG_REMOVAL_GEMINI_FALLBACK_MODEL isn't set separately, its
+  // default ALSO resolves to that same broken 3.1 model, and the second
+  // fallback defaults to the other confirmed-broken 3.1 variant — so
+  // every single one of the 4 attempts above was hitting a model already
+  // known not to work, and gemini-2.5-flash-image (the one model that
+  // actually works) was never tried at all. A wrong env var should
+  // degrade this feature, not disable it outright, so a known-good
+  // model the code has already tested is now guaranteed to be tried at
+  // least once, however the environment's model names are configured.
+  const KNOWN_GOOD_MODEL = 'gemini-2.5-flash-image';
+  if (!attempts.some((a) => a.model === KNOWN_GOOD_MODEL)) {
+    attempts.push({ model: KNOWN_GOOD_MODEL, waitMs: 6000 });
+  }
   const errors: string[] = [];
   for (let i = 0; i < attempts.length; i++) {
     const { model: m, waitMs } = attempts[i];

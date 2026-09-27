@@ -6,6 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { FigmaIcon } from '../../components/icons/FigmaIcon';
@@ -46,7 +47,18 @@ function getColorHex(label: string): string {
 
 export default function ColorAnalysisScreen() {
   const { colors, type } = useAppTheme();
-  const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
+  // This screen is pushed as a nested stack screen inside the "Me" tab,
+  // so the bottom tab bar stays mounted underneath it the whole time —
+  // React Navigation doesn't hide a parent tab's bar just because a
+  // child stack pushed a new screen. A flat `paddingBottom: spacing.xl`
+  // (32px) was nowhere near the bar's real height (~80-100px with the
+  // safe-area inset folded in), so the bottom of a long result — the
+  // last row of the color palette, sometimes the whole "Best to avoid"
+  // section — rendered underneath the bar instead of above it. Reading
+  // the bar's actual height means this clears it exactly, regardless of
+  // device safe-area insets.
+  const tabBarHeight = useBottomTabBarHeight();
+  const styles = React.useMemo(() => makeStyles(colors, type, tabBarHeight), [colors, type, tabBarHeight]);
 
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -139,10 +151,10 @@ export default function ColorAnalysisScreen() {
   );
 }
 
-function makeStyles(colors: any, type: any) {
+function makeStyles(colors: any, type: any, tabBarHeight: number) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
-    content: { padding: spacing.lg, paddingBottom: spacing.xl },
+    content: { padding: spacing.lg, paddingBottom: tabBarHeight + spacing.lg },
     subtitle: { ...type.muted, marginBottom: spacing.md, lineHeight: 17 },
     photoBox: {
       height: 220, borderRadius: radius.lg, backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border,
