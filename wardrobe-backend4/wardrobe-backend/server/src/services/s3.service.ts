@@ -111,16 +111,30 @@ export async function verifyUploadedPhotoSize(key: string): Promise<void> {
   try {
     head = await s3.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
   } catch (err: any) {
-    // A HeadObject failure here almost always means the client's PUT to
-    // the presigned URL never actually completed (network drop, expired
-    // URL, signature mismatch) — the object just isn't in the bucket.
-    // Left as-is, the AWS SDK throws an opaque "UnknownError"/"NotFound"
-    // with no useful message, which surfaced to the person as a bare
-    // "Could not save — UnknownError" alert with no indication that the
-    // real problem was the photo upload itself, not the save. Client-
-    // side now checks the PUT's own response status before ever calling
-    // this endpoint, but this is a clear, actionable fallback in case a
-    // key still shows up unverifiable for any other reason.
+    // A HeadObject failure here can mean two very different things, and
+    // they were previously collapsed into one identical, unhelpful
+    // message on both the client and in these logs:
+    //   1. The object genuinely isn't in the bucket (client's PUT never
+    //      completed — network drop, expired presigned URL).
+    //   2. The credentials THIS SERVER is using to call AWS are bad —
+    //      wrong/rotated/revoked access key, or a key that's valid but
+    //      lacks s3:GetObject/HeadObject permission on this bucket. This
+    //      looks identical to (1) to the person using the app (still
+    //      "could not save"), but is a totally different fix: rotating/
+    //      fixing the AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY (or the
+    //      IAM policy) in Render's env vars, not a retry.
+    // Logging the AWS SDK's actual error name/code here means the next
+    // occurrence shows up unambiguously in Render's logs instead of
+    // requiring another round of guessing from a generic client alert.
+    const code = err?.name || err?.Code || err?.$metadata?.httpStatusCode || 'Unknown';
+    console.error(`[s3.service] HeadObject failed for key "${key}" — code=${code}:`, err);
+    const CREDENTIAL_ERROR_CODES = new Set([
+      'AccessDenied', 'InvalidAccessKeyId', 'SignatureDoesNotMatch',
+      'CredentialsProviderError', 'UnrecognizedClientException', 'ExpiredToken', 'Forbidden',
+    ]);
+    if (CREDENTIAL_ERROR_CODES.has(code) || err?.$metadata?.httpStatusCode === 403) {
+      throw new Error("The server couldn't verify the photo in storage because AWS rejected its credentials (not a photo problem). Check the backend's AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / bucket permissions in Render.");
+    }
     throw new Error("We couldn't find the uploaded photo — the upload may not have completed. Please try again.");
   }
   const size = head.ContentLength ?? 0;
