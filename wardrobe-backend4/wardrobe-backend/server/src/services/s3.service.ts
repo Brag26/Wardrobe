@@ -151,6 +151,28 @@ export async function verifyUploadedPhotoSize(key: string): Promise<void> {
 // One Gemini call with a hard timeout. Throws a GeminiError that says
 // whether it's worth retrying (overload, timeout, no image returned) or
 // not (bad API key, bad model name, bad request).
+// Shared by every background-removal provider: reads the image's own
+// alpha channel to confirm it's actually a real cutout — genuine
+// transparency exists (the background is actually gone) AND a real
+// solid subject remains (the garment wasn't wiped out along with it).
+// Returns a human-readable description of what's wrong, or null if
+// the image looks like a proper cutout.
+async function checkCutoutQuality(buffer: Buffer): Promise<string | null> {
+  try {
+    const stats = await sharp(buffer).ensureAlpha().stats();
+    const alphaChannel = stats.channels[stats.channels.length - 1];
+    const hasRealTransparency = alphaChannel.min === 0 && alphaChannel.std > 1;
+    const hasRealSubject = alphaChannel.max > 200 && alphaChannel.mean > 15;
+    if (!hasRealTransparency) return "returned an image with no real transparency (background wasn't actually removed, just repainted).";
+    if (!hasRealSubject) return 'returned an image with the garment erased too (almost entirely transparent, nothing solid left).';
+    return null;
+  } catch {
+    // If sharp itself can't read the file, let the caller's normal
+    // "not a valid image" handling deal with it rather than masking it.
+    return null;
+  }
+}
+
 class GeminiError extends Error {
   constructor(message: string, public retryable: boolean) { super(message); }
 }
@@ -170,7 +192,15 @@ async function callGeminiOnce(model: string, apiKey: string, prompt: string, mim
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
-          generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+          // Low temperature = follow the instructions literally rather
+          // than improvise. We've seen the model take real creative
+          // liberties (repainting a background instead of making it
+          // transparent, leaving skin/face in, erasing the garment
+          // along with the person) — this narrows that down, at the
+          // cost of slightly more repetitive/less "creative" edits,
+          // which is exactly the tradeoff we want for a mechanical
+          // cutout task.
+          generationConfig: { responseModalities: ['TEXT', 'IMAGE'], temperature: 0.15 },
         }),
         signal: controller.signal,
       }
@@ -207,36 +237,200 @@ async function callGeminiOnce(model: string, apiKey: string, prompt: string, mim
       true // image models skip the image now and then; a second try usually works
     );
   }
-  return Buffer.from(inline.data, 'base64');
+  const buffer = Buffer.from(inline.data, 'base64');
+
+  // Bug: Gemini can return HTTP 200 with a perfectly valid PNG that
+  // still has NO real transparency — a solid white/grey background
+  // painted in instead of an actual cutout. That was being accepted
+  // as a success (the item "worked", it just still had a background).
+  // Check the image's own alpha channel and treat an effectively-opaque
+  // result as a failure worth retrying/falling back on, the same as
+  // any other bad response, rather than silently keeping a bad photo.
+  //
+  // Second bug found right after adding the check above: it only
+  // confirmed transparency existed SOMEWHERE, not that the garment
+  // itself survived. A couple of stray leftover pixels were enough to
+  // pass "min === 0 && std > 1" even when the model erased the whole
+  // photo — the exact "shirt vanished along with the background"
+  // failure. Now also requires a real opaque subject: some genuinely
+  // solid pixels (max close to 255) AND enough of them to move the
+  // average, not just noise.
+  const problem = await checkCutoutQuality(buffer);
+  if (problem) throw new GeminiError(`Gemini (${model}) ${problem}`, true);
+
+  return buffer;
 }
 
 // Gemini image editing, with retries. Previously a single hiccup (Google
 // returning 503 "model overloaded", a 429, a slow response, or the model
 // answering with text only) failed the item permanently. Now:
-//   attempt 1: main model
+//   attempt 1: main model (gemini-2.5-flash-image by default)
 //   attempt 2: main model again after a short wait
-//   attempt 3: fallback model (full Nano Banana 2 by default)
+//   attempt 3: first fallback model (gemini-3.1-flash-image)
+//   attempt 4: second fallback model (gemini-3.1-flash-lite-image)
 // Errors that retrying can't fix (bad key, unknown model) fail at once
 // with a clear message.
+// Identifies an image's real format from its own bytes (the standard
+// "magic number" each format starts with), for the case above where
+// the server's Content-Type header can't be trusted. Falls back to
+// JPEG — the format every camera/gallery photo in this app already
+// is — if the bytes don't match a known signature.
+function sniffImageMimeType(buf: Buffer): string {
+  if (buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return 'image/png';
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
+  if (buf.length >= 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') return 'image/webp';
+  if (buf.length >= 6 && (buf.toString('ascii', 0, 6) === 'GIF87a' || buf.toString('ascii', 0, 6) === 'GIF89a')) return 'image/gif';
+  if (buf.length >= 12 && buf.toString('ascii', 4, 8) === 'ftyp' && (buf.toString('ascii', 8, 12) === 'heic' || buf.toString('ascii', 8, 12) === 'heix')) return 'image/heic';
+  return 'image/jpeg';
+}
+
+// fal.ai's "virtual-tryoff-lora" — unlike Gemini (a general-purpose
+// editor being asked to do something it wasn't built for), this model
+// was trained specifically for "photo of a person wearing an item" ->
+// "clean cutout of just that item, no person." Run through fal's
+// generic FLUX.2 Klein 9B "edit with a custom LoRA" endpoint, pointing
+// at the LoRA weights fal publishes for this exact model.
+// Endpoint and weights URL are env-overridable in case fal restructures
+// either — a config change, not a redeploy, if that ever happens.
+async function runFalBackgroundRemoval(imageUrl: string, apiKey: string): Promise<Buffer> {
+  if (!apiKey) {
+    throw new Error('FAL_API_KEY is not set on the server. Add your fal.ai API key to the backend environment variables and redeploy.');
+  }
+  const endpoint = process.env.FAL_TRYOFF_ENDPOINT || 'fal-ai/flux-2/klein/9b/edit/lora';
+  const loraUrl = process.env.FAL_TRYOFF_LORA_URL
+    || 'https://huggingface.co/fal/virtual-tryoff-lora/resolve/main/virtual-tryoff-lora_diffusers.safetensors';
+  // Recommended prompt straight from the model's own card on Hugging
+  // Face — deliberately left as-is rather than rewritten, since a
+  // model trained against a specific prompt phrasing tends to respond
+  // best to that exact phrasing.
+  const prompt = 'TRYOFF extract the full outfit over a white background, product photography style. NO HUMAN VISIBLE (the garments maintain their 3D form like an invisible mannequin).';
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`https://fal.run/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Key ${apiKey}` },
+      body: JSON.stringify({
+        image_url: imageUrl,
+        prompt,
+        loras: [{ path: loraUrl, scale: 1 }],
+      }),
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    if (err?.name === 'AbortError') throw new Error(`fal.ai (${endpoint}) timed out after ${GEMINI_TIMEOUT_MS / 1000}s`);
+    throw new Error(`Could not reach fal.ai (${endpoint}): ${err?.message ?? err}`);
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!res.ok) {
+    const body = (await res.text().catch(() => '')).slice(0, 400);
+    throw new Error(`fal.ai (${endpoint}) returned ${res.status}: ${body}`);
+  }
+
+  const data: any = await res.json();
+  const outUrl = data?.images?.[0]?.url;
+  if (!outUrl) throw new Error(`fal.ai (${endpoint}) response had no image. Raw response: ${JSON.stringify(data).slice(0, 400)}`);
+
+  const imgRes = await fetch(outUrl);
+  if (!imgRes.ok) throw new Error(`Could not download fal.ai result image: ${imgRes.status}`);
+  const rawResult = Buffer.from(await imgRes.arrayBuffer());
+  // This model outputs a clean white background by design (see the
+  // prompt above), not a transparent one — different from what the
+  // Gemini path was asked for. Turn that white into real transparency
+  // so both providers hand back the same kind of file downstream, and
+  // so the "is this actually transparent" check further down doesn't
+  // reject a fal result just for being a different (also valid) style
+  // of "background removed."
+  return whiteToTransparent(rawResult);
+}
+
+// Converts a clean, near-uniform white background (exactly what the
+// fal model above produces) into real alpha transparency. Deliberately
+// only touches pixels that are essentially pure white — a product
+// photo's plain backdrop — so white or near-white parts of the
+// garment itself (a white shirt, cream fabric) are left alone unless
+// they're truly indistinguishable from the backdrop.
+async function whiteToTransparent(buffer: Buffer): Promise<Buffer> {
+  const WHITE_THRESHOLD = 246; // 0-255; how close to pure white counts as "background"
+  const image = sharp(buffer).ensureAlpha();
+  const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
+  for (let i = 0; i < data.length; i += info.channels) {
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    if (r >= WHITE_THRESHOLD && g >= WHITE_THRESHOLD && b >= WHITE_THRESHOLD) {
+      data[i + 3] = 0; // alpha channel
+    }
+  }
+  return sharp(data, { raw: { width: info.width, height: info.height, channels: info.channels } }).png().toBuffer();
+}
+
 async function runGeminiBackgroundRemoval(imageUrl: string, apiKey: string): Promise<Buffer> {
   if (!apiKey) {
     throw new Error('BG_REMOVAL_API_KEY is not set on the server. Add your Gemini API key to the backend environment variables and redeploy.');
   }
-  const model = process.env.BG_REMOVAL_GEMINI_MODEL || 'gemini-3.1-flash-lite-image';
+  // Bug: both gemini-3.1-flash-lite-image AND gemini-3.1-flash-image
+  // were returning HTTP 400 on this API key — not a transient/safety
+  // issue, an access or request-format problem with the 3.1 image
+  // models specifically. Defaulting to gemini-2.5-flash-image ("Nano
+  // Banana"), the older, far more widely-available image model, with
+  // the 3.1 models kept as fallbacks in case they start working (e.g.
+  // once whatever access restriction is resolved on this key).
+  const model = process.env.BG_REMOVAL_GEMINI_MODEL || 'gemini-2.5-flash-image';
   const fallbackModel = process.env.BG_REMOVAL_GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-image';
+  const secondFallbackModel = process.env.BG_REMOVAL_GEMINI_SECOND_FALLBACK_MODEL || 'gemini-3.1-flash-lite-image';
 
   const imageRes = await fetch(imageUrl);
   if (!imageRes.ok) throw new Error(`Could not fetch source image for Gemini: ${imageRes.status}`);
   const imageBuffer = Buffer.from(await imageRes.arrayBuffer());
-  const mimeType = (imageRes.headers.get('content-type') || 'image/jpeg').split(';')[0];
+  // Bug: the real cause of the "Unsupported MIME type: binary/octet-stream"
+  // 400 from Gemini. Some upload path (not every one — most items work
+  // fine) is putting the photo in S3 without a real image Content-Type,
+  // so S3 serves it back as the generic default, and that generic
+  // value was being forwarded to Gemini as-is. Rather than track down
+  // which specific upload flow is missing it, this reads the file's
+  // own magic bytes whenever the header isn't a real image/* type —
+  // correct regardless of what S3 says, and unaffected by whichever
+  // path skipped setting it.
+  const headerMimeType = (imageRes.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+  const mimeType = headerMimeType.startsWith('image/') ? headerMimeType : sniffImageMimeType(imageBuffer);
   const base64 = imageBuffer.toString('base64');
 
-  const prompt = 'Remove the person/model and everything else from this photo — keep ONLY the clothing item itself. Output a PNG with a fully transparent background (real alpha transparency, not a white or colored background) around the garment, cut cleanly along its actual edges. Preserve the garment\'s exact color, shape, texture, and details exactly as shown — do not alter, redesign, or restyle the item itself, only remove everything that is not the garment.';
+  // Tightened after confirming the model removes the person correctly
+  // but tends to fill the background with a soft white/grey area
+  // instead of real transparency — a known limitation of general
+  // image-editing models rather than something prompt wording fully
+  // solves. This version is more explicit about "transparent" meaning
+  // see-through, not "paint it white/grey," as the best realistic
+  // improvement short of a purpose-built cutout model.
+  // Rewritten as an explicit checklist rather than one dense sentence
+  // after seeing three distinct, real failures from testing: the
+  // model repainting a solid background instead of real transparency,
+  // erasing the garment along with the person, and — separately —
+  // not removing the person at all (skin/face/hands left fully
+  // intact, only the room behind them cut out). Each of those gets
+  // its own explicit line below rather than being implied, since an
+  // itemized list of hard requirements tends to get followed more
+  // literally than the same rules folded into prose.
+  const prompt = [
+    'Task: turn this photo of a person wearing a clothing item into a clean product-photo cutout of ONLY that item.',
+    '',
+    'Hard requirements — all of these must be true in the output:',
+    '1. Every part of the PERSON is gone: face, hair, neck, skin, hands, fingers, arms, legs — anything that is the person\'s body, not the garment. If skin or a face is still visible anywhere in your output, you have failed this task.',
+    '2. The GARMENT itself is fully kept and fully visible — its complete shape, exact color, pattern, texture and fine details, unaltered and unredesigned. If the garment is missing, faded away, or only partially there, you have failed this task.',
+    '3. Everywhere that is not the garment — the removed person, the room, the floor, furniture, anything else in the original photo — must be REAL transparency (alpha = 0), the kind a PNG cutout sticker has. Painting that area white, grey, beige, or any solid color is NOT transparency and counts as failing this task, even if the person was successfully removed.',
+    '4. The garment keeps a natural, slightly 3D draped/worn shape (as if on an invisible mannequin), not flattened into a 2D silhouette.',
+    '',
+    'Output: a single PNG with a genuinely transparent background, containing nothing but the garment.',
+  ].join('\n');
 
   const attempts = [
     { model, waitMs: 0 },
     { model, waitMs: 3000 },
     { model: fallbackModel, waitMs: 6000 },
+    { model: secondFallbackModel, waitMs: 6000 },
   ];
   const errors: string[] = [];
   for (let i = 0; i < attempts.length; i++) {
@@ -305,6 +499,13 @@ export async function removeBackground(originalKey: string, itemId: string, user
     resultBuffer = Buffer.from(await res.arrayBuffer());
   } else if (provider === 'gemini') {
     resultBuffer = await runGeminiBackgroundRemoval(originalUrl, apiKey);
+  } else if (provider === 'fal') {
+    // Uses FAL_API_KEY specifically, not BG_REMOVAL_API_KEY — a
+    // separate fal.ai account/key, not the Gemini one.
+    const falApiKey = process.env.FAL_API_KEY ?? '';
+    resultBuffer = await runFalBackgroundRemoval(originalUrl, falApiKey);
+    const problem = await checkCutoutQuality(resultBuffer);
+    if (problem) throw new Error(`fal.ai ${problem}`);
   } else {
     throw new Error(`Unknown BG_REMOVAL_PROVIDER: ${provider}`);
   }
