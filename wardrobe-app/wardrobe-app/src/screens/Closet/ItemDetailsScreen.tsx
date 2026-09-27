@@ -229,7 +229,16 @@ export default function ItemDetailsScreen() {
         <Button label="Edit details" variant="outline" onPress={() => { setForm(itemToForm(item)); setEditing(true); }} />
         <View style={{ height: spacing.sm }} />
         <Button label={item.isFavorite ? 'Remove from favorites' : 'Add to favorites'} variant="outline"
-          onPress={async () => { await setItemFavorite(itemId, !item.isFavorite); setItem({ ...item, isFavorite: !item.isFavorite }); }} />
+          onPress={() => {
+            // item 9: favoriting felt slow here because this waited on
+            // the network call before flipping the button label at all —
+            // same fix as Closet's grid heart, flip first, let the
+            // request happen in the background, and roll back only if
+            // it actually fails.
+            const next = !item.isFavorite;
+            setItem({ ...item, isFavorite: next });
+            setItemFavorite(itemId, next).catch(() => setItem({ ...item, isFavorite: !next }));
+          }} />
         <View style={{ height: spacing.sm }} />
         <Button label={item.archivedAt ? 'Unarchive' : 'Archive'} variant="outline" onPress={handleArchiveToggle} />
         <View style={{ height: spacing.sm }} />

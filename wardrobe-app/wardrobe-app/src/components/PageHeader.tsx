@@ -13,7 +13,7 @@ import { FigmaIcon } from './icons/FigmaIcon';
 import { spacing } from '../theme/theme';
 import { useAppTheme } from '../theme/ThemeContext';
 
-export function PageHeader({ title }: { title: string }) {
+export function PageHeader({ title, onBackPress }: { title: string; onBackPress?: () => void }) {
   const navigation = useNavigation<any>();
   const { colors, type } = useAppTheme();
   const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
@@ -21,7 +21,13 @@ export function PageHeader({ title }: { title: string }) {
   return (
     <View style={styles.row}>
       <TouchableOpacity
-        onPress={() => navigation.navigate('HomeTab')}
+        // Tab-root screens (Closet, Outfits, Chat, Style Profile...) have
+        // no real "back" screen — Fits is the one sensible destination.
+        // A screen PUSHED on top of one of those (like "View More" ->
+        // AllOutfits) DOES have a real previous screen, so it passes
+        // onBackPress={() => navigation.goBack()} to return there
+        // instead of jumping all the way home.
+        onPress={onBackPress ?? (() => navigation.navigate('HomeTab'))}
         style={styles.backButton}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         accessibilityLabel="Back to Fits"

@@ -239,9 +239,22 @@ export const getFavoriteItems = () => authedFetch('/closet/favorites/items');
 export const getFavoriteOutfits = () => authedFetch('/closet/favorites/outfits');
 export const getDailyPick = () => authedFetch('/looks/daily-pick');
 
-export const getWardrobeItems = (params: Record<string, string> = {}) => {
-  const qs = new URLSearchParams(params).toString();
-  return authedFetch(`/wardrobe/items${qs ? `?${qs}` : ''}`);
+export const getWardrobeItems = (params: Record<string, string | string[]> = {}) => {
+  // Some filters (color, notably) can be multi-select, so a value may
+  // be an array — appended as repeated keys (?color=red&color=blue),
+  // which the backend's listItems controller already reads via
+  // Array.isArray(q.color).
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value == null) continue;
+    if (Array.isArray(value)) {
+      value.forEach((v) => qs.append(key, v));
+    } else {
+      qs.append(key, value);
+    }
+  }
+  const qsString = qs.toString();
+  return authedFetch(`/wardrobe/items${qsString ? `?${qsString}` : ''}`);
 };
 export const getWardrobeItem = (id: string) => authedFetch(`/wardrobe/items/${id}`);
 export const getItemsByIds = async (ids: string[]) => {
@@ -451,6 +464,12 @@ export const shuffleLook = (occasion?: string, mood?: string) =>
   authedFetch('/looks/shuffle', { method: 'POST', body: JSON.stringify({ occasion, mood }) });
 export const saveManualOutfit = (itemIds: string[]) =>
   authedFetch('/looks/manual', { method: 'POST', body: JSON.stringify({ itemIds }) });
+// item 10: daily cap on Discover/Shuffle so a person can see how many
+// AI recommendations they have left before they hit the limit.
+export const getRecommendationUsage = () => authedFetch('/looks/usage');
+// item 11: "history should be there to verify what were selected
+// previously" — past Discover/Shuffle picks.
+export const getRecommendationHistory = () => authedFetch('/looks/history');
 
 export const getChatHistory = () => authedFetch('/chat/history');
 export const clearChatHistory = () => authedFetch('/chat/history', { method: 'DELETE' });

@@ -103,6 +103,7 @@ const ChatMessageSchema = new Schema({
   userId: { type: String, required: true, index: true },
   role: { type: String, enum: ['user', 'assistant'], required: true },
   text: { type: String, required: true },
+  imageUrl: { type: String, default: null },
   suggestedOutfitIds: { type: [String], default: null },
   referencedItemIds: { type: [String], default: null },
   quickReplies: { type: [String], default: null },
@@ -196,6 +197,17 @@ const CalendarEntrySchema = new Schema({
 // updates the existing entry rather than creating a duplicate.
 CalendarEntrySchema.index({ userId: 1, date: 1 }, { unique: true });
 
+const RecommendationLogSchema = new Schema({
+  id: { type: String, required: true, unique: true },
+  userId: { type: String, required: true, index: true },
+  itemIds: { type: [String], default: [] },
+  occasion: { type: String, default: null },
+  mood: { type: String, default: null },
+  matchScore: { type: Number, default: null },
+  createdAt: { type: Number, required: true },
+});
+RecommendationLogSchema.index({ userId: 1, createdAt: -1 });
+
 // mongoose.models check avoids "OverwriteModelError" on Lambda warm starts,
 // where the module can be re-evaluated without the process fully restarting.
 export const WardrobeItemModel = mongoose.models.WardrobeItem ?? mongoose.model(COLLECTIONS.wardrobeItems, WardrobeItemSchema);
@@ -206,5 +218,6 @@ export const UserModel = mongoose.models.User ?? mongoose.model(COLLECTIONS.user
 export const OtpRequestModel = mongoose.models.OtpRequest ?? mongoose.model(COLLECTIONS.otpRequests, OtpRequestSchema);
 export const OtpRateLimitLogModel = mongoose.models.OtpRateLimitLog ?? mongoose.model('otp_rate_limit_log', OtpRateLimitLogSchema);
 export const DailyPickModel = mongoose.models.DailyPick ?? mongoose.model(COLLECTIONS.dailyPicks, DailyPickSchema);
+export const RecommendationLogModel = mongoose.models.RecommendationLog ?? mongoose.model(COLLECTIONS.recommendationLogs, RecommendationLogSchema);
 export const PackingModel = mongoose.models.Packing ?? mongoose.model(COLLECTIONS.packings, PackingSchema);
 export const CalendarEntryModel = mongoose.models.CalendarEntry ?? mongoose.model(COLLECTIONS.calendarEntries, CalendarEntrySchema);

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, FlatList, Switch, Animated, Image, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, FlatList, Switch, Animated, Image, Modal, BackHandler, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -140,6 +140,21 @@ export default function HomeScreen() {
   // every time this screen regains focus — e.g. tapping back from
   // Closet — not just the first time it's opened.
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // QA (regressed once already — re-applying): on Android, the hardware
+  // back button walked backward through every tab/screen visited during
+  // the session instead of exiting the app the way most Android apps do
+  // from their home screen. Home/Fits is this app's true "home" — while
+  // it's the focused screen, hardware back exits instead of continuing
+  // to unwind tab history.
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android') return;
+      const onBackPress = () => { BackHandler.exitApp(); return true; };
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [])
+  );
 
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 

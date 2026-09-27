@@ -126,24 +126,23 @@ export default function ChatScreen() {
 
   const send = async (text: string) => {
     if (!text.trim() && !attachedPhoto) return;
-    // Bug fix: this used to just append "[+ photo attached]" to the
-    // text and never actually send the image anywhere, so Ara could
-    // never really "see" it. The photo itself (attachedPhoto) is now
-    // uploaded and passed to sendChatMessage, which the backend hands
-    // to a real vision model — the "[+ photo attached]" text is kept
-    // only as a readable label on the optimistic bubble shown here.
+    // QA (still recurring): a message sent with a photo showed the
+    // literal text "[+ photo attached]" instead of the photo itself.
+    // Root cause was actually TWO bugs stacked: (1) the backend's
+    // ChatMessage never persisted an imageUrl at all, so even a
+    // correctly-shown optimistic bubble reverted to text-only the
+    // instant load() replaced it with server history; (2) this bubble
+    // never rendered an Image even when a photo WAS available — it only
+    // ever rendered m.text. Both are fixed now: the backend stores and
+    // returns imageUrl on the saved user message, and the bubble below
+    // renders it as a real photo, using the local file first (instant,
+    // no network round trip) and falling back to the server's imageUrl
+    // once history reloads.
     const photoToSend = attachedPhoto;
-    const finalText = photoToSend ? `${text} [+ photo attached]` : text;
     setInput('');
     setAttachedPhoto(null);
 
-    // Keep the actual picked-photo URI on the optimistic bubble too —
-    // previously only the "[+ photo attached]" text label was kept, so
-    // the pre-send preview (an actual thumbnail near the input bar)
-    // showed the real photo, but the moment it was "sent" the bubble
-    // fell back to just that text label with no image at all. That
-    // made it look like the photo itself had been dropped on send.
-    const optimisticMessage = { id: `local-${Date.now()}`, role: 'user', text: finalText, localPhotoUri: photoToSend };
+    const optimisticMessage = { id: `local-${Date.now()}`, role: 'user', text, imageUrl: null, localPhotoUri: photoToSend };
     setMessages((prev) => [...prev, optimisticMessage]);
     setSending(true);
     scrollDown();
@@ -205,15 +204,12 @@ export default function ChatScreen() {
         </View>
       </View>
 
-      {/* This screen is nested inside a tab/stack navigator, which is a
-          well-known case where relying on Android's automatic
-          keyboard-resize behavior alone silently stops working — the
-          input row ends up hidden behind the keyboard with no visual
-          feedback while typing. Every other screen in this app with a
-          text input (AddItemScreen, OtpScreen, PhoneScreen, etc.) uses
-          the same `'padding'` / `'height'` KeyboardAvoidingView split
-          for that reason — matching that established, working pattern
-          here instead of leaving Android to the OS alone. */}
+      {/* QA: the input field was hidden behind the keyboard on Android.
+          Relying on undefined behavior (assuming Expo's own adjustResize
+          would handle it) doesn't hold up in practice on this screen —
+          same fix as every other form in this app (AddItemScreen,
+          OtpScreen, CreateOutfitScreen, etc): 'height' on Android,
+          'padding' on iOS. */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView ref={scrollRef} style={styles.log} contentContainerStyle={{ padding: spacing.md }}>
           {messages.length === 0 && !sending && (
@@ -227,10 +223,14 @@ export default function ChatScreen() {
           {messages.map((m) => (
             m.role === 'user' ? (
               <View key={m.id} style={[styles.bubble, styles.userBubble]}>
-                {m.localPhotoUri && (
-                  <Image source={{ uri: m.localPhotoUri }} style={styles.sentPhotoThumb} />
+                {(m.localPhotoUri || m.imageUrl) && (
+                  <Image
+                    source={{ uri: m.localPhotoUri || m.imageUrl }}
+                    style={styles.userMessagePhoto}
+                    resizeMode="cover"
+                  />
                 )}
-                <Text style={[styles.bubbleText, styles.userText]}>{m.text}</Text>
+                {m.text ? <Text style={[styles.bubbleText, styles.userText]}>{m.text}</Text> : null}
               </View>
             ) : (
               <View key={m.id} style={styles.assistantRow}>
@@ -246,7 +246,7 @@ export default function ChatScreen() {
                           <TouchableOpacity
                             key={id}
                             style={styles.referencedItemCard}
-                            onPress={() => navigation.navigate('ClosetTab', { screen: 'ItemDetails', params: { itemId: id } })}
+                            onPress={() => navigation.navigate('ItemDetailModal', { itemId: id })}
                           >
                             <ItemThumb item={itemCache[id]} size={72} />
                           </TouchableOpacity>
@@ -334,6 +334,7 @@ function makeStyles(colors: any, type: any) {
   referencedItemsRow: { marginTop: -4, marginBottom: spacing.sm },
   referencedItemCard: { marginRight: spacing.xs, borderRadius: radius.sm, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
   userBubble: { backgroundColor: '#1A1712', alignSelf: 'flex-end' },
+  userMessagePhoto: { width: 180, height: 180, borderRadius: radius.sm, marginBottom: spacing.xs },
   assistantBubble: { backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, alignSelf: 'flex-start' },
   // type.body has no explicit lineHeight — fine for short labels
   // elsewhere in the app, but a real problem for multi-sentence chat
@@ -354,7 +355,6 @@ function makeStyles(colors: any, type: any) {
   pillText: { fontSize: 12, fontWeight: '500', color: colors.ink },
   attachmentPreview: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingBottom: spacing.xs },
   attachmentThumb: { width: 44, height: 44, borderRadius: radius.sm },
-  sentPhotoThumb: { width: 160, height: 160, borderRadius: radius.sm, marginBottom: spacing.xs },
   attachmentRemove: { marginLeft: -12, marginTop: -30, backgroundColor: colors.black, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   inputRow: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: spacing.xs, borderTopWidth: 1, borderTopColor: colors.border },
   iconButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },

@@ -21,6 +21,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import RootTabNavigator from './RootTabNavigator';
+import ItemDetailsScreen from '../screens/Closet/ItemDetailsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -28,6 +29,16 @@ export default function MainStackNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Tabs" component={RootTabNavigator} />
+      {/* QA (regressed once already — re-applying): tapping a chat
+          suggested-outfit item photo used to navigate('ClosetTab', {
+          screen: 'ItemDetails' }), which pushes onto CLOSET's own
+          independent stack instead of Chat's — so Back landed on the
+          Closet/Outfits homepage instead of back in the conversation.
+          Registering the same ItemDetailsScreen component here, on the
+          top-level stack every tab sits under, lets it be opened as a
+          real modal from ANY tab while Back still returns to wherever
+          it was opened from. */}
+      <Stack.Screen name="ItemDetailModal" component={ItemDetailsScreen} options={{ presentation: 'modal' }} />
     </Stack.Navigator>
   );
 }

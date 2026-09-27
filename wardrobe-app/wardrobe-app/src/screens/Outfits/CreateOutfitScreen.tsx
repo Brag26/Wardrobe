@@ -64,15 +64,16 @@ export default function CreateOutfitScreen() {
   const [aesthetic, setAesthetic] = useState<string | null>(null);
   const [aesthetics, setAesthetics] = useState<string[]>(['clean_girl', 'old_money', 'y2k', 'streetwear', 'cottagecore', 'dark_academia', 'minimalist', 'preppy']);
   const [categories, setCategories] = useState<string[]>(['casual', 'formal', 'business', 'evening_wear', 'sport']);
-  // Bug: with a wardrobe that grows custom outfit categories over time,
-  // this used to render every single one as a flat, wrapping row of
-  // pills — fine at 5-6 categories, unusable once someone has a lot of
-  // them. Same fix as ItemDetailsForm's category picker (AddItemScreen):
-  // collapsed behind a single dropdown by default, tap to expand, with
-  // a search box that appears once there are enough categories to need
-  // one, instead of always showing every pill at once.
-  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
-  const [categorySearch, setCategorySearch] = useState('');
+  // "add custom outfits [categories]" — the domain type already had a
+  // customCategories field described as "added via '+ Add'", but no
+  // screen actually had a "+ Add" control until now. Typing a new one
+  // here adds it to this outfit's own customCategories AND makes it
+  // show up as a pickable chip everywhere else going forward, since
+  // getOutfitCategories() aggregates customCategories across all of a
+  // user's outfits.
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCategoryText, setNewCategoryText] = useState('');
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(!editOutfitId);
   // A closet can have hundreds/thousands of items — showing every
@@ -98,9 +99,9 @@ export default function CreateOutfitScreen() {
       getOutfit(editOutfitId).then((o) => {
         setName(o.name ?? '');
         setCategory(o.category ?? null);
-        if (o.category) setCategoryPickerOpen(true);
         setAesthetic(o.aesthetic ?? null);
         setSelectedIds(o.itemIds ?? []);
+        setCustomCategories(o.customCategories ?? []);
         originalValues.current = { name: o.name ?? '', category: o.category ?? null, aesthetic: o.aesthetic ?? null, selectedIds: o.itemIds ?? [] };
         setLoaded(true);
       }).catch(() => setLoaded(true));
@@ -129,16 +130,24 @@ export default function CreateOutfitScreen() {
   const toggleItem = (id: string) =>
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
+  const handleAddCustomCategory = () => {
+    const trimmed = newCategoryText.trim().toLowerCase().replace(/\s+/g, '_');
+    if (!trimmed) { setAddingCategory(false); return; }
+    if (!categories.includes(trimmed)) setCategories((prev) => [...prev, trimmed]);
+    if (!customCategories.includes(trimmed)) setCustomCategories((prev) => [...prev, trimmed]);
+    setCategory(trimmed);
+    setNewCategoryText('');
+    setAddingCategory(false);
+  };
+
   const handleSave = async () => {
+    // QA (regressed once already — re-applying): an empty closet and a
+    // closet with items but nothing picked got the exact same message,
+    // which was confusing for the empty-closet case (there's nothing TO
+    // select yet, so "select at least one piece" reads like a dead end).
     if (selectedIds.length === 0) {
-      // Distinguish "closet is empty" from "closet has items but none
-      // picked" — items is already fetched above for the picker grid,
-      // so no extra request is needed to tell these apart.
       if (items.length === 0) {
-        return Alert.alert(
-          'There\'s no outfit yet',
-          'Your closet is empty, so there\'s nothing to build an outfit from. Add some items to your closet first.'
-        );
+        return Alert.alert("Your closet's empty", 'Add a few items to your closet first, then come back to build an outfit.');
       }
       return Alert.alert('There\'s no outfit yet', 'Select at least one piece of clothing to build this outfit.');
     }
@@ -157,12 +166,12 @@ export default function CreateOutfitScreen() {
     setSaving(true);
     try {
       if (editOutfitId) {
-        await updateOutfit(editOutfitId, { name: name.trim() || null, category, aesthetic, itemIds: selectedIds, itemIdsBySlot: { tops: selectedIds, pants: [], shoes: [], bags: [], other: [] } });
+        await updateOutfit(editOutfitId, { name: name.trim() || null, category, customCategories, aesthetic, itemIds: selectedIds, itemIdsBySlot: { tops: selectedIds, pants: [], shoes: [], bags: [], other: [] } });
       } else {
         await createOutfit({
           name: name.trim() || null,
           itemIdsBySlot: { tops: selectedIds, pants: [], shoes: [], bags: [], other: [] },
-          category, aesthetic,
+          category, customCategories, aesthetic,
         });
       }
       savedSuccessfully.current = true;
@@ -235,36 +244,30 @@ export default function CreateOutfitScreen() {
           );
         })}
 
-        <TouchableOpacity style={styles.sectionHeader} onPress={() => setCategoryPickerOpen((o) => !o)} activeOpacity={0.7}>
-          <Text style={styles.sectionLabel}>
-            Category{category ? ` · ${category.replace(/_/g, ' ')}` : ''}
-          </Text>
-          <FigmaIcon name="chevronDown" size={16} color={colors.inkMuted} style={categoryPickerOpen ? styles.chevronExpanded : undefined} />
-        </TouchableOpacity>
-        {categoryPickerOpen && (
-          <View>
-            {categories.length > 12 && (
-              <TextInput
-                style={styles.categorySearchInput}
-                value={categorySearch}
-                onChangeText={setCategorySearch}
-                placeholder="Search categories"
-                placeholderTextColor={colors.inkMuted}
-              />
-            )}
-            <View style={styles.chipRow}>
-              {categories
-                .filter((c) => c.replace(/_/g, ' ').includes(categorySearch.trim().toLowerCase()))
-                .map((c) => (
-                  <Chip
-                    key={c}
-                    label={c.replace(/_/g, ' ')}
-                    emoji={CATEGORY_EMOJI[c]}
-                    selected={category === c}
-                    onPress={() => { setCategory(c); setCategoryPickerOpen(false); }}
-                  />
-                ))}
-            </View>
+        <Text style={styles.sectionLabel}>Category</Text>
+        <View style={styles.chipRow}>
+          {categories.map((c) => <Chip key={c} label={c.replace(/_/g, ' ')} emoji={CATEGORY_EMOJI[c]} selected={category === c} onPress={() => setCategory(c)} />)}
+          {!addingCategory && <Chip label="+ Add" emoji="➕" selected={false} onPress={() => setAddingCategory(true)} />}
+        </View>
+        {addingCategory && (
+          <View style={styles.addCategoryRow}>
+            <TextInput
+              style={styles.addCategoryInput}
+              value={newCategoryText}
+              onChangeText={setNewCategoryText}
+              placeholder="Name your own category…"
+              placeholderTextColor={colors.inkMuted}
+              autoFocus
+              maxLength={30}
+              onSubmitEditing={handleAddCustomCategory}
+              returnKeyType="done"
+            />
+            <TouchableOpacity style={styles.addCategoryConfirm} onPress={handleAddCustomCategory}>
+              <FigmaIcon name="checkmark" size={14} color={colors.white} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addCategoryCancel} onPress={() => { setAddingCategory(false); setNewCategoryText(''); }}>
+              <FigmaIcon name="close" size={14} color={colors.inkMuted} />
+            </TouchableOpacity>
           </View>
         )}
 
@@ -307,10 +310,6 @@ function makeStyles(colors: any, type: any) {
     marginTop: spacing.md, marginBottom: spacing.sm, paddingVertical: spacing.xs,
   },
   chevronExpanded: { transform: [{ rotate: '180deg' }] },
-  categorySearchInput: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: spacing.md,
-    paddingVertical: 10, fontSize: 13, color: colors.ink, backgroundColor: colors.bgSoft, marginBottom: spacing.sm,
-  },
   itemGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   itemTile: { alignItems: 'center', width: 84, position: 'relative' },
   itemLabel: { fontSize: 10.5, color: colors.inkMuted, marginTop: 4, textTransform: 'capitalize', textAlign: 'center' },
@@ -320,6 +319,13 @@ function makeStyles(colors: any, type: any) {
   },
   selectedBadgeText: { color: colors.white, fontSize: 12, fontWeight: '700' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  addCategoryRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.sm },
+  addCategoryInput: {
+    flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: spacing.md,
+    paddingVertical: 10, fontSize: 13, color: colors.ink, backgroundColor: colors.bgSoft,
+  },
+  addCategoryConfirm: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.black, alignItems: 'center', justifyContent: 'center' },
+  addCategoryCancel: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   pillRow: { flexDirection: 'row', flexWrap: 'wrap' },
   nameInput: {
     borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: spacing.md,

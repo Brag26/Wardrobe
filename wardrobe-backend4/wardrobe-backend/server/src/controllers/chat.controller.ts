@@ -44,7 +44,7 @@ export async function sendMessage(req: Request, res: Response) {
   const imageUrl = s3Key ? getPublicUrl(s3Key) : undefined;
 
   const userMessage: ChatMessage = {
-    id: randomUUID(), userId, role: 'user', text,
+    id: randomUUID(), userId, role: 'user', text, imageUrl: imageUrl ?? null,
     suggestedOutfitIds: null, referencedItemIds: null, quickReplies: null, createdAt: Date.now(),
   };
   await saveChatMessage(userMessage);

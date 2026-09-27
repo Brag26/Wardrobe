@@ -111,21 +111,17 @@ export async function verifyUploadedPhotoSize(key: string): Promise<void> {
   try {
     head = await s3.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
   } catch (err: any) {
-    // A HeadObject failure here can mean two very different things, and
-    // they were previously collapsed into one identical, unhelpful
-    // message on both the client and in these logs:
-    //   1. The object genuinely isn't in the bucket (client's PUT never
-    //      completed — network drop, expired presigned URL).
-    //   2. The credentials THIS SERVER is using to call AWS are bad —
-    //      wrong/rotated/revoked access key, or a key that's valid but
-    //      lacks s3:GetObject/HeadObject permission on this bucket. This
-    //      looks identical to (1) to the person using the app (still
-    //      "could not save"), but is a totally different fix: rotating/
-    //      fixing the AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY (or the
-    //      IAM policy) in Render's env vars, not a retry.
-    // Logging the AWS SDK's actual error name/code here means the next
-    // occurrence shows up unambiguously in Render's logs instead of
-    // requiring another round of guessing from a generic client alert.
+    // QA (regressed once already — re-applying): a HeadObject failure
+    // used to be treated as ONE thing — "the photo upload never
+    // completed" — but that's only true for a genuine 404/NotFound.
+    // AWS credential problems (a revoked/rotated access key, wrong
+    // secret, bucket policy denying HeadObject) throw their OWN
+    // distinct error codes and were being collapsed into the exact same
+    // misleading "upload may not have completed" message — which is
+    // what happened after the .env leak got the AWS key auto-revoked:
+    // every save failed with a message that pointed at the wrong cause
+    // entirely. This distinguishes the two so the real problem (server
+    // credentials, not the person's photo) is what actually gets said.
     const code = err?.name || err?.Code || err?.$metadata?.httpStatusCode || 'Unknown';
     console.error(`[s3.service] HeadObject failed for key "${key}" — code=${code}:`, err);
     const CREDENTIAL_ERROR_CODES = new Set([
@@ -522,6 +518,31 @@ async function addCacheHeadersRetroactively(key: string): Promise<void> {
   }
 }
 
+// Runs exactly one provider pass; throws on any failure. Split out of
+// removeBackground() so a primary/fallback chain (below) can attempt a
+// second provider automatically instead of just failing outright —
+// mirrors the AI_VISION_PROVIDER -> AI_VISION_FALLBACK chain already
+// used for photo recognition in aiStylist.service.ts.
+async function runBackgroundRemovalProvider(provider: string, apiKey: string, originalUrl: string): Promise<Buffer> {
+  if (provider === 'removebg') {
+    const res = await fetch('https://api.remove.bg/v1.0/removebg', {
+      method: 'POST',
+      headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_url: originalUrl, size: 'auto' }),
+    });
+    if (!res.ok) throw new Error(`remove.bg failed: ${res.status} ${await res.text()}`);
+    return Buffer.from(await res.arrayBuffer());
+  } else if (provider === 'gemini') {
+    return runGeminiBackgroundRemoval(originalUrl, apiKey);
+  } else if (provider === 'fal') {
+    const result = await runFalBackgroundRemoval(originalUrl, apiKey);
+    const problem = await checkCutoutQuality(result);
+    if (problem) throw new Error(`fal.ai ${problem}`);
+    return result;
+  }
+  throw new Error(`Unknown BG_REMOVAL_PROVIDER: ${provider}`);
+}
+
 export async function removeBackground(originalKey: string, itemId: string, userId: string): Promise<{ processedKey: string }> {
   const provider = process.env.BG_REMOVAL_PROVIDER ?? 'none';
   const processedKey = `wardrobe/${userId}/${itemId}/processed.png`;
@@ -535,29 +556,35 @@ export async function removeBackground(originalKey: string, itemId: string, user
     return { processedKey };
   }
 
-  const apiKey = process.env.BG_REMOVAL_API_KEY ?? '';
+  const apiKey = provider === 'fal' ? (process.env.FAL_API_KEY ?? '') : (process.env.BG_REMOVAL_API_KEY ?? '');
   const originalUrl = await getSignedReadUrl(originalKey, 600);
 
+  // Optional second attempt with a DIFFERENT provider/key — e.g. set
+  // BG_REMOVAL_FALLBACK_PROVIDER=fal + FAL_API_KEY as a safety net for
+  // when the primary (gemini) key gets revoked/rate-limited, which is
+  // exactly the failure mode that's been showing up as "try again"
+  // here. Without this env var set, behavior is unchanged: a primary
+  // failure surfaces as 'failed' immediately, same as before.
+  const fallbackProvider = process.env.BG_REMOVAL_FALLBACK_PROVIDER;
+  const fallbackApiKey = fallbackProvider === 'fal' ? (process.env.FAL_API_KEY ?? '') : (process.env.BG_REMOVAL_FALLBACK_API_KEY ?? '');
+
   let resultBuffer: Buffer;
-  if (provider === 'removebg') {
-    const res = await fetch('https://api.remove.bg/v1.0/removebg', {
-      method: 'POST',
-      headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image_url: originalUrl, size: 'auto' }),
-    });
-    if (!res.ok) throw new Error(`remove.bg failed: ${res.status} ${await res.text()}`);
-    resultBuffer = Buffer.from(await res.arrayBuffer());
-  } else if (provider === 'gemini') {
-    resultBuffer = await runGeminiBackgroundRemoval(originalUrl, apiKey);
-  } else if (provider === 'fal') {
-    // Uses FAL_API_KEY specifically, not BG_REMOVAL_API_KEY — a
-    // separate fal.ai account/key, not the Gemini one.
-    const falApiKey = process.env.FAL_API_KEY ?? '';
-    resultBuffer = await runFalBackgroundRemoval(originalUrl, falApiKey);
-    const problem = await checkCutoutQuality(resultBuffer);
-    if (problem) throw new Error(`fal.ai ${problem}`);
-  } else {
-    throw new Error(`Unknown BG_REMOVAL_PROVIDER: ${provider}`);
+  try {
+    resultBuffer = await runBackgroundRemovalProvider(provider, apiKey, originalUrl);
+  } catch (primaryErr: any) {
+    if (!fallbackProvider || fallbackProvider === provider) throw primaryErr;
+    console.warn(`[s3.service] Background removal via "${provider}" failed, trying fallback provider "${fallbackProvider}":`, primaryErr?.message ?? primaryErr);
+    try {
+      resultBuffer = await runBackgroundRemovalProvider(fallbackProvider, fallbackApiKey, originalUrl);
+      console.log(`[s3.service] Fallback background-removal provider "${fallbackProvider}" succeeded for item ${itemId}.`);
+    } catch (fallbackErr: any) {
+      console.error(`[s3.service] Fallback provider "${fallbackProvider}" also failed:`, fallbackErr?.message ?? fallbackErr);
+      // Surface the PRIMARY error — it's the one whose provider is
+      // actually configured as the intended default, so it's the more
+      // useful one to see in the (opt-in, "show technical details")
+      // error text on the client.
+      throw primaryErr;
+    }
   }
 
   // Resized server-side (Node, via sharp) before ever reaching S3 —

@@ -1,13 +1,10 @@
 // src/screens/Calendar/CalendarScreen.tsx
 // Home board's Calendar screen — month grid where any date with a real
 // assigned outfit (set via "Outfit of the Day" on Home, or manually
-// from DayOutfitScreen) shows a small dot marker in that cell instead
-// of just a number, so the day is flagged as "planned" without
-// revealing what the outfit actually is. The actual outfit (photos,
-// name, pieces) only shows once the day is tapped open, on
-// DayOutfitScreen. Days with nothing set just show the plain date —
-// this only ever reflects outfits that genuinely exist, never invents
-// placeholder content for empty days.
+// from DayOutfitScreen) shows an actual small photo collage in that
+// cell instead of just a number. Days with nothing set just show the
+// plain date — this only ever reflects outfits that genuinely exist,
+// never invents placeholder content for empty days.
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,10 +26,9 @@ export default function CalendarScreen() {
   const styles = React.useMemo(() => makeStyles(colors), [colors]);
   const [month, setMonth] = useState(todayString().slice(0, 7));
   // Keyed by date ('YYYY-MM-DD') -> the enriched entry from the
-  // backend, which includes previewItems alongside outfitId/date.
-  // previewItems is only used to decide whether to show the "planned"
-  // dot marker on the grid cell — the actual photos aren't rendered
-  // here, only after the day is tapped open (DayOutfitScreen).
+  // backend, which now includes previewItems (up to 2 resolved items)
+  // alongside outfitId/date — that's what lets each cell render an
+  // actual small photo instead of just a dot.
   const [entriesByDate, setEntriesByDate] = useState<Record<string, any>>({});
   const [todayOutfit, setTodayOutfit] = useState<any>(null);
   const [todayItems, setTodayItems] = useState<any[]>([]);
@@ -86,9 +82,13 @@ export default function CalendarScreen() {
         <Text style={[styles.dayNumber, isOtherMonth && styles.dayNumberMuted, isToday && styles.dayNumberToday]}>
           {date.day}
         </Text>
-        {entry?.previewItems?.length > 0 && (
-          <View style={styles.dayDot} />
-        )}
+        {/* QA (regressed once already — re-applying): showing the
+            outfit's actual photos in every day cell meant the outfit
+            was effectively visible before the day was ever tapped —
+            "outfit of the day shows before the day is tapped". A plain
+            dot just marks that something's assigned; the real photos
+            only show once DayOutfitScreen is opened. */}
+        {entry?.previewItems?.length > 0 && <View style={styles.dayDot} />}
       </TouchableOpacity>
     );
   };
@@ -156,10 +156,11 @@ function makeStyles(colors: any) {
     dayNumber: { fontSize: 12, color: colors.ink, fontWeight: '500' },
     dayNumberMuted: { color: colors.border },
     dayNumberToday: { color: colors.lavenderDeep, fontWeight: '700' },
-    // A plain marker that something is planned for this day — no photo
-    // preview in the grid, so the outfit itself only shows once the day
-    // is tapped open (see DayOutfitScreen).
-    dayDot: { width: 6, height: 6, borderRadius: 3, marginTop: 6, backgroundColor: colors.lavenderDeep },
+    // Was a 2-piece diagonal stack that only ever showed the outfit's
+    // first two items even when it had 4-5. Now a compact 2x2 grid so
+    // every day cell reflects the whole outfit (backend now sends up
+    // to 4 preview items instead of capping at 2).
+    dayDot: { width: 6, height: 6, borderRadius: 3, marginTop: 4, backgroundColor: colors.lavenderDeep },
     todaySectionTitle: { fontSize: 14, fontWeight: '700', color: colors.ink, paddingHorizontal: spacing.lg, marginTop: spacing.lg, marginBottom: spacing.sm },
     todayCard: {
       flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border,

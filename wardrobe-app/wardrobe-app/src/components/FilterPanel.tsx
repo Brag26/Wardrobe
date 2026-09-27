@@ -15,7 +15,14 @@ import { useAppTheme } from '../theme/ThemeContext';
 
 export interface FilterValues {
   season?: string;
+  // Single-select color, used by screens that pass multiColor={false}
+  // (the default) — kept as-is since the Outfits backend endpoint only
+  // accepts one color today.
   color?: string;
+  // Multi-select colors, used by screens that pass multiColor={true}
+  // (Closet's "My Closet Overview" filter) — the wardrobe items
+  // endpoint already accepts repeated ?color= values server-side.
+  colors?: string[];
   style?: string;
   minRating?: number;
   aesthetic?: string;
@@ -31,12 +38,17 @@ interface FilterPanelProps {
   styles_: string[];
   showRating?: boolean;
   aesthetics?: string[];
+  // When true, the Color section lets the person pick more than one
+  // swatch instead of just one (Closet needs this — a closet of 1000+
+  // items narrowed to a single color at a time wasn't useful).
+  multiColor?: boolean;
 }
 
-export function FilterPanel({ visible, onClose, onApply, initial, seasons, colors, styles_, showRating = true, aesthetics }: FilterPanelProps) {
+export function FilterPanel({ visible, onClose, onApply, initial, seasons, colors, styles_, showRating = true, aesthetics, multiColor = false }: FilterPanelProps) {
   const { colors: theme } = useAppTheme();
   const [season, setSeason] = useState(initial?.season);
   const [color, setColor] = useState(initial?.color);
+  const [selectedColors, setSelectedColors] = useState<string[]>(initial?.colors ?? []);
   const [style, setStyle] = useState(initial?.style);
   const [minRating, setMinRating] = useState(initial?.minRating ?? 0);
   const [aesthetic, setAesthetic] = useState(initial?.aesthetic);
@@ -45,14 +57,25 @@ export function FilterPanel({ visible, onClose, onApply, initial, seasons, color
     if (visible) {
       setSeason(initial?.season);
       setColor(initial?.color);
+      setSelectedColors(initial?.colors ?? []);
       setStyle(initial?.style);
       setMinRating(initial?.minRating ?? 0);
       setAesthetic(initial?.aesthetic);
     }
   }, [visible]);
 
-  const handleReset = () => { setSeason(undefined); setColor(undefined); setStyle(undefined); setMinRating(0); setAesthetic(undefined); };
-  const handleApply = () => { onApply({ season, color, style, minRating: minRating > 0 ? minRating : undefined, aesthetic }); onClose(); };
+  const toggleColor = (c: string) => {
+    setSelectedColors((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+  };
+
+  const handleReset = () => { setSeason(undefined); setColor(undefined); setSelectedColors([]); setStyle(undefined); setMinRating(0); setAesthetic(undefined); };
+  const handleApply = () => {
+    onApply({
+      season, style, minRating: minRating > 0 ? minRating : undefined, aesthetic,
+      ...(multiColor ? { colors: selectedColors.length > 0 ? selectedColors : undefined } : { color }),
+    });
+    onClose();
+  };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -71,10 +94,18 @@ export function FilterPanel({ visible, onClose, onApply, initial, seasons, color
               ))}
             </View>
 
-            <Text style={[styles.sectionLabel, { color: theme.ink }]}>Color</Text>
+            <Text style={[styles.sectionLabel, { color: theme.ink }]}>
+              Color{multiColor ? ' (pick as many as you like)' : ''}
+            </Text>
             <View style={styles.pillRow}>
               {colors.map((c) => (
-                <TagPill key={c} label={c} selected={color === c} onPress={() => setColor(color === c ? undefined : c)} dotColor={COLOR_SWATCHES[c]} />
+                <TagPill
+                  key={c}
+                  label={c}
+                  selected={multiColor ? selectedColors.includes(c) : color === c}
+                  onPress={() => (multiColor ? toggleColor(c) : setColor(color === c ? undefined : c))}
+                  dotColor={COLOR_SWATCHES[c]}
+                />
               ))}
             </View>
 

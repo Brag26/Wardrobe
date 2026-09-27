@@ -77,6 +77,13 @@ export default function ArchiveScreen() {
           <FlatList
             data={items}
             keyExtractor={(i) => i.id}
+            // QA (regressed once already — re-applying): deselecting an
+            // item visually "vanished" it until the screen was revisited.
+            // toggle() only ever mutates the `selected` Set, never
+            // filters `items` itself, but FlatList doesn't know a
+            // cell's rendered appearance depends on that Set — extraData
+            // guarantees a re-render whenever selection changes.
+            extraData={selected}
             numColumns={3}
             columnWrapperStyle={{ gap: spacing.sm, paddingHorizontal: spacing.lg }}
             contentContainerStyle={{ gap: spacing.sm, paddingBottom: 100 }}

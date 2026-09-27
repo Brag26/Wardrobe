@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Share, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import { FigmaIcon } from '../../components/icons/FigmaIcon';
 import { listOutfits, getOutfitCategories, getItemsByIds, deleteOutfit, updateOutfit, listPackings, getAttributeSuggestions, setOutfitFavorite } from '../../api/wardrobeApi';
 import { collageLayout } from '../../utils/outfitCollage';
@@ -14,6 +14,12 @@ import { useAppTheme } from '../../theme/ThemeContext';
 import { AppIcon } from '../../components/icons/AppIcons';
 
 const SEASONS = ['summer', 'autumn', 'winter', 'monsoon', 'spring', 'all_season'];
+// Home page only teases a handful of outfits, same as the "View More"
+// pattern used elsewhere in the app (e.g. Journal's calendar preview) —
+// scrolling through 1000+ outfits inline wasn't the point of this page.
+// "View More" pushes a second copy of this same screen with
+// viewAll=true, which lifts the cap and skips the packing section.
+const OUTFITS_PREVIEW_COUNT = 6;
 
 // Positions items in an overlapping flat-lay arrangement instead of a
 // bordered grid — one "anchor" piece (usually a top/dress) large and
@@ -43,6 +49,8 @@ export default function OutfitsScreen() {
   const { colors, type } = useAppTheme();
   const styles = React.useMemo(() => makeStyles(colors, type), [colors, type]);
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const viewAll = !!route.params?.viewAll;
   const [outfits, setOutfits] = useState<any[]>([]);
   const [previews, setPreviews] = useState<Record<string, any>>({});
   const [categories, setCategories] = useState<string[]>(['casual', 'formal', 'business', 'evening_wear', 'sport']);
@@ -146,6 +154,8 @@ export default function OutfitsScreen() {
   };
 
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
+  const displayedOutfits = viewAll ? outfits : outfits.slice(0, OUTFITS_PREVIEW_COUNT);
+  const hasMoreOutfits = !viewAll && outfits.length > OUTFITS_PREVIEW_COUNT;
 
   const handleShare = async (outfit: any) => {
     // Text-based share via React Native's built-in Share API — a real
@@ -166,13 +176,21 @@ export default function OutfitsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <PageHeader title="My Outfits" />
+      <PageHeader
+        title={viewAll ? 'All Outfits' : 'My Outfits'}
+        onBackPress={viewAll ? () => navigation.goBack() : undefined}
+      />
       <View style={styles.header}>
         {/* Same single-row, no-wrap layout as Closet's header row — this
             used to wrap onto a second line on narrower screens, which
             broke the straight horizontal alignment with "My Outfits". */}
         <View style={{ flex: 1 }} />
         <View style={{ flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'flex-end', alignItems: 'center', gap: spacing.xs }}>
+          {!viewAll && (
+            <TouchableOpacity style={styles.filterButton} onPress={() => navigation.navigate('OutfitFavorites')}>
+              <FigmaIcon name="heartOutline" size={13} color={colors.ink} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={styles.filterButton} onPress={() => setFilterPanelOpen(true)}>
             <FigmaIcon name="filter" size={13} color={colors.ink} />
             {activeFilterCount > 0 && <Text style={styles.filterButtonText}> {activeFilterCount}</Text>}
@@ -204,7 +222,7 @@ export default function OutfitsScreen() {
       />
 
       <FlatList
-        data={outfits}
+        data={displayedOutfits}
         keyExtractor={(o) => o.id}
         numColumns={2}
         style={{ flex: 1 }}
@@ -229,11 +247,18 @@ export default function OutfitsScreen() {
                 treatment here, right above the outfit grid. */}
             {outfits.length > 0 ? (
               <View style={[styles.packingHeaderRow, { marginBottom: spacing.md }]}>
-                <Text style={styles.packingSectionTitle}>My Outfits</Text>
-                <Text style={styles.packingViewAll}>{outfits.length} outfit{outfits.length === 1 ? '' : 's'}</Text>
+                <Text style={styles.packingSectionTitle}>{viewAll ? 'All Outfits' : 'My Outfits'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                  <Text style={styles.packingViewAll}>{outfits.length} outfit{outfits.length === 1 ? '' : 's'}</Text>
+                  {hasMoreOutfits && (
+                    <TouchableOpacity onPress={() => navigation.navigate('AllOutfits', { viewAll: true })}>
+                      <Text style={styles.viewMoreLink}>View More</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             ) : null}
-            {packings.length > 0 ? (
+            {!viewAll && packings.length > 0 ? (
               <View style={{ marginBottom: spacing.md }}>
                 <View style={styles.packingHeaderRow}>
                   <Text style={styles.packingSectionTitle}>My packing</Text>
@@ -426,13 +451,17 @@ function makeStyles(colors: any, type: any) {
   title: { ...type.h1 },
   filterButton: { backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, width: 34, height: 34, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
   filterButtonText: { fontSize: 12, color: colors.ink },
-  packButton: { backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, height: 34, paddingHorizontal: spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  // QA (regressed once already — re-applying): paddingVertical made
+  // this button a different height than the 34x34 filter circle next to
+  // it, breaking the straight row alignment Closet's toolbar has.
+  packButton: { backgroundColor: colors.bgSoft, borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, height: 34, justifyContent: 'center', paddingHorizontal: spacing.sm, flexDirection: 'row', alignItems: 'center' },
   packButtonText: { fontWeight: '600', fontSize: 12, color: colors.ink },
-  addButton: { backgroundColor: colors.black, borderRadius: radius.pill, height: 34, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  addButton: { backgroundColor: colors.black, borderRadius: radius.pill, height: 34, justifyContent: 'center', paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center' },
   addButtonText: { color: colors.white, fontWeight: '600', fontSize: 12 },
   packingHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
   packingSectionTitle: { ...type.h3 },
   packingViewAll: { fontSize: 12, color: colors.inkMuted },
+  viewMoreLink: { fontSize: 12, color: colors.lavenderDeep, fontWeight: '700' },
   packingCard: { width: 130, backgroundColor: colors.bgSoft, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.sm },
   packingCoverWrap: { width: '100%', height: 145, borderRadius: radius.sm, overflow: 'hidden' },
   packingCoverPlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.cream },

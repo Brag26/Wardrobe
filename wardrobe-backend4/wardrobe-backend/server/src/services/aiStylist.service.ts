@@ -236,11 +236,16 @@ export const SLOT_CATEGORY_GROUPS: Record<string, string[]> = SLOT_PREFIX_GROUPS
 
 const SLOT_ORDER: ClothingCategory[] = ['top', 'dress', 'bottom', 'shoes', 'bag', 'outerwear', 'accessory'];
 
+// Neutrals coordinate with almost anything, so they get no color-clash
+// penalty regardless of what they're paired with.
+const NEUTRAL_COLORS = new Set(['black', 'white', 'grey', 'gray', 'beige', 'navy', 'cream', 'brown', 'tan']);
+
 function scoreItem(
   item: WardrobeItem,
   occasion: Occasion | null,
   mood: Mood | null,
-  recommendedColors?: string[] | null
+  recommendedColors?: string[] | null,
+  recentlyUsedItemIds?: string[] | null
 ): number {
   let score = 0;
   if (occasion && item.occasionTags.includes(occasion)) score += 3;
@@ -251,14 +256,33 @@ function scoreItem(
   // done one — this is what actually makes that feature useful instead
   // of a number sitting unused in their profile.
   if (recommendedColors?.length && recommendedColors.includes(item.color)) score += 1.5;
+  // item 11: "recommendation logic ... history should verify what was
+  // selected previously" — a soft penalty (not a hard exclusion, so a
+  // small closet doesn't run out of valid options) toward whatever was
+  // just recommended, so back-to-back requests actually vary instead of
+  // converging on the same handful of "safe" high-scoring pieces.
+  if (recentlyUsedItemIds?.includes(item.id)) score -= 1.25;
   return score;
+}
+
+// item 11: "logical and suitable match" — used after the per-slot pick
+// to nudge away from a jarring color clash between the anchor piece
+// (dress, or top) and whatever's paired with it. Neutrals always pass;
+// otherwise a small bonus for landing on the exact same color (a clean
+// monochrome pairing) keeps the RANDOM tie-break above from being the
+// only thing deciding when two candidates score identically otherwise.
+function colorCoordinationBonus(color: string, anchorColor: string | null): number {
+  if (!anchorColor || color === anchorColor) return 0;
+  if (NEUTRAL_COLORS.has(color) || NEUTRAL_COLORS.has(anchorColor)) return 0;
+  return -0.5; // two different non-neutral colors together — mild clash penalty
 }
 
 export function pickOutfitItems(
   items: WardrobeItem[],
   occasion: Occasion | null,
   mood: Mood | null,
-  recommendedColors?: string[] | null
+  recommendedColors?: string[] | null,
+  recentlyUsedItemIds?: string[] | null
 ): WardrobeItem[] {
   const picked: WardrobeItem[] = [];
   const usedCategories = new Set<ClothingCategory>();
@@ -278,7 +302,7 @@ export function pickOutfitItems(
   const bottoms = items.filter((i) => categoryInSlot(i.category, 'bottom'));
 
   const bestScore = (pool: WardrobeItem[]) =>
-    pool.length ? Math.max(...pool.map((i) => scoreItem(i, occasion, mood, recommendedColors))) : null;
+    pool.length ? Math.max(...pool.map((i) => scoreItem(i, occasion, mood, recommendedColors, recentlyUsedItemIds))) : null;
 
   const bestDressScore = bestScore(dresses);
   const bestTopScore = bestScore(tops);
@@ -298,8 +322,14 @@ export function pickOutfitItems(
     const candidates = items.filter((i) => categoryInSlot(i.category, category));
     if (candidates.length === 0) continue;
 
+    // Anchor color: the first already-picked piece (dress, or top),
+    // used to steer this slot's pick away from a jarring color clash.
+    const anchorColor = picked.length > 0 ? picked[0].color : null;
     const scored = candidates
-      .map((item) => ({ item, score: scoreItem(item, occasion, mood, recommendedColors) }))
+      .map((item) => ({
+        item,
+        score: scoreItem(item, occasion, mood, recommendedColors, recentlyUsedItemIds) + colorCoordinationBonus(item.color, anchorColor),
+      }))
       .sort((a, b) => b.score - a.score);
 
     // Tie-break with randomness among equally-scored top candidates,

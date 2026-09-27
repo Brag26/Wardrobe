@@ -6,6 +6,7 @@ import CreateOutfitScreen from '../screens/Outfits/CreateOutfitScreen';
 import StartPackingScreen from '../screens/Outfits/StartPackingScreen';
 import SelectPackingOutfitsScreen from '../screens/Outfits/SelectPackingOutfitsScreen';
 import PackingDetailScreen from '../screens/Outfits/PackingDetailScreen';
+import OutfitFavoritesScreen from '../screens/Outfits/OutfitFavoritesScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -13,6 +14,12 @@ export default function OutfitsNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="OutfitsHome" component={OutfitsScreen} />
+      {/* "View More" on the outfits grid pushes this — the exact same
+          screen/component, just with viewAll=true, which lifts the
+          preview cap and hides the packing section so it reads as a
+          dedicated "all outfits" page. */}
+      <Stack.Screen name="AllOutfits" component={OutfitsScreen} />
+      <Stack.Screen name="OutfitFavorites" component={OutfitFavoritesScreen} />
       <Stack.Screen name="OutfitDetail" component={OutfitDetailScreen} />
       <Stack.Screen name="CreateOutfit" component={CreateOutfitScreen} />
       <Stack.Screen name="StartPacking" component={StartPackingScreen} />

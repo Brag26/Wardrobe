@@ -10,9 +10,10 @@ import { connectToDatabase } from './db';
 import { randomUUID } from 'crypto';
 import {
   WardrobeItemModel, OutfitModel, StylingSessionModel, ChatMessageModel, DailyPickModel, PackingModel, CalendarEntryModel,
+  RecommendationLogModel,
 } from '../models/schemas';
 import {
-  WardrobeItem, Outfit, StylingSession, ChatMessage, ItemListFilters, DailyPick, Packing, CalendarEntry,
+  WardrobeItem, Outfit, StylingSession, ChatMessage, ItemListFilters, DailyPick, Packing, CalendarEntry, RecommendationLog,
   SUGGESTED_COLORS, SUGGESTED_STYLES, SUGGESTED_SEASONS, SUGGESTED_CATEGORIES, SUGGESTED_AESTHETICS,
 } from '../types/domain';
 
@@ -356,6 +357,46 @@ export async function createDailyPick(pick: DailyPick): Promise<DailyPick> {
     }
     throw err;
   }
+}
+
+// ---------- AI Recommendation usage (rate limit + history) ----------
+//
+// One log row per "AI Recommendation for fits" generated (Discover's
+// category picks + Shuffle). Backs both:
+//   - item 10: a daily cap on how many times a person can request a new
+//     recommendation, so a single user can't run up API-key usage/cost
+//     with unlimited shuffling.
+//   - item 11: recent history ("what were selected previously"), plus
+//     letting pickOutfitItems() avoid immediately repeating a recent combo.
+
+function startOfTodayUtcMs(): number {
+  const d = new Date();
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+export async function countRecommendationsToday(userId: string): Promise<number> {
+  await connectToDatabase();
+  return RecommendationLogModel.countDocuments({ userId, createdAt: { $gte: startOfTodayUtcMs() } });
+}
+
+export async function logRecommendation(log: RecommendationLog): Promise<void> {
+  await connectToDatabase();
+  await RecommendationLogModel.create(log);
+}
+
+export async function getRecommendationHistory(userId: string, limit = 20): Promise<RecommendationLog[]> {
+  await connectToDatabase();
+  const docs = await RecommendationLogModel.find({ userId }).sort({ createdAt: -1 }).limit(limit).lean();
+  return docs.map(strip) as RecommendationLog[];
+}
+
+// Items shown across the last few recommendations, so a fresh pick can
+// steer away from an exact repeat instead of showing the same outfit
+// again immediately.
+export async function getRecentlyRecommendedItemIds(userId: string, lookback = 3): Promise<string[]> {
+  await connectToDatabase();
+  const docs = await RecommendationLogModel.find({ userId }).sort({ createdAt: -1 }).limit(lookback).lean();
+  return [...new Set(docs.flatMap((d: any) => d.itemIds ?? []))];
 }
 
 // ---------- Packing / trips ----------

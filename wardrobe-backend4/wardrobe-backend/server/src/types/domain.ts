@@ -236,6 +236,12 @@ export interface ChatMessage {
   userId: string;
   role: 'user' | 'assistant';
   text: string;
+  // The photo the PERSON attached to their own message (not an item
+  // photo) — was never persisted at all before, so a photo attached to
+  // a user message vanished after the optimistic bubble was replaced by
+  // the reloaded history, leaving only the literal "[+ photo attached]"
+  // text with nothing to actually look at.
+  imageUrl?: string | null;
   suggestedOutfitIds: string[] | null;
   referencedItemIds: string[] | null; // items Ara's reply actually mentions by name/color+category — lets the chat UI show a real picture instead of just describing an item in text
   quickReplies: string[] | null;
@@ -324,7 +330,26 @@ export const COLLECTIONS = {
   dailyPicks: 'daily_picks',
   packings: 'packings',
   calendarEntries: 'calendar_entries',
+  recommendationLogs: 'recommendation_logs',
 } as const;
+
+// One row per "AI Recommendation for fits" generated (Discover's
+// category picks + the Shuffle button) — serves two purposes:
+//   1. Rate limiting (item 10): counting today's rows per user enforces
+//      AI_RECOMMENDATION_DAILY_LIMIT without a separate counter table.
+//   2. History (item 11): "history should be there to verify what were
+//      selected previously" — the Discover screen lists past picks from
+//      this same log, and pickOutfitItems() uses recent itemIds here to
+//      avoid immediately repeating the same combination.
+export interface RecommendationLog {
+  id: string;
+  userId: string;
+  itemIds: string[];
+  occasion: Occasion | null;
+  mood: Mood | null;
+  matchScore: number | null;
+  createdAt: number;
+}
 
 // "Outfit of the Day" calendar (Home board's Calendar screen) — one
 // outfit assigned per date, past or future ("plan ahead" and "log what

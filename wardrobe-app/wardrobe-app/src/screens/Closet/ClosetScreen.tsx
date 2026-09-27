@@ -71,10 +71,10 @@ export default function ClosetScreen() {
   const load = useCallback(async (cat: string, activeFilters: FilterValues, search: string) => {
     setClosetLoading(true);
     try {
-      const params: Record<string, string> = {};
+      const params: Record<string, string | string[]> = {};
       if (cat !== 'All') params.category = cat.toLowerCase().replace(/ /g, '_');
       if (activeFilters.season) params.season = activeFilters.season;
-      if (activeFilters.color) params.color = activeFilters.color;
+      if (activeFilters.colors && activeFilters.colors.length > 0) params.color = activeFilters.colors;
       if (activeFilters.style) params.style = activeFilters.style;
       if (search.trim()) params.search = search.trim();
       const data = await getWardrobeItems(params);
@@ -87,7 +87,7 @@ export default function ClosetScreen() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { load(category, filters, searchText); }, [category, filters, load]));
+  useFocusEffect(useCallback(() => { load(category, filters, searchText); }, [category, filters, searchText, load]));
 
   // Debounced — searching on every keystroke would fire a network
   // request per character typed. 400ms after the person stops typing
@@ -99,6 +99,19 @@ export default function ClosetScreen() {
 
   const onRefresh = async () => { setRefreshing(true); await load(category, filters, searchText); setRefreshing(false); };
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
+
+  // QA (regressed once already — re-applying): "Browse by category"
+  // taps sometimes did nothing visible — the request to the server DID
+  // go out (load() above already builds params.category), but a slow
+  // or errored refetch left the OLD unfiltered items on screen with no
+  // sign anything happened. This filters what's actually rendered
+  // client-side too, so tapping a category is never dependent on the
+  // network round trip finishing to show *something* changed.
+  const displayedItems = React.useMemo(() => {
+    if (category === 'All') return items;
+    const target = category.toLowerCase().replace(/ /g, '_');
+    return items.filter((i) => i.category === target || i.category?.startsWith(`${target}_`));
+  }, [items, category]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -155,7 +168,7 @@ export default function ClosetScreen() {
       />
 
       <FlatList
-        data={items}
+        data={displayedItems}
         keyExtractor={(i) => i.id}
         numColumns={2}
         style={{ flex: 1 }}
@@ -175,7 +188,18 @@ export default function ClosetScreen() {
           )
         }
         renderItem={({ item }) => (
-          <TouchableOpacity style={[styles.card, { width: cardWidth }]} onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })}>
+          <TouchableOpacity
+            style={[styles.card, { width: cardWidth }]}
+            onPress={() => {
+              // QA (regressed once already — re-applying): native-stack
+              // keeps ClosetScreen mounted underneath ItemDetails, so a
+              // leftover search query survived the round trip — and once
+              // back, further typing into that stale query stopped
+              // matching anything sensible. Clear it going in.
+              setSearchText('');
+              navigation.navigate('ItemDetails', { itemId: item.id });
+            }}
+          >
             <View style={styles.thumbWrap}>
               <ItemThumb item={item} size={cardWidth} />
               <TouchableOpacity
@@ -221,6 +245,7 @@ export default function ClosetScreen() {
         colors={colorOptions}
         styles_={styleOptions}
         showRating={false}
+        multiColor
       />
     </SafeAreaView>
   );
