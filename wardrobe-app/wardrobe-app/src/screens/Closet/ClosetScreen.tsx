@@ -37,7 +37,33 @@ export default function ClosetScreen() {
   const cardWidth = Math.floor((screenWidth - spacing.lg * 2 - spacing.sm) / 2);
 
   const [items, setItems] = useState<any[]>([]);
-  const [category, setCategory] = useState(route.params?.initialCategory ?? 'All');
+  // QA: Home's "Browse by category" passes the RAW backend category key
+  // (e.g. "t_shirt"), but this screen's own tab labels are the
+  // space-separated, human-readable version (e.g. "t shirt") built
+  // below from the same overview data. Comparing the raw key straight
+  // against those labels (`category === c`) silently failed for any
+  // multi-word category — filtering still worked (it re-normalizes
+  // separately), but the pill never highlighted. Normalize on the way
+  // in so both use the same format.
+  const normalizeCategory = (c: string) => c.replace(/_/g, ' ');
+  const [category, setCategory] = useState(
+    route.params?.initialCategory ? normalizeCategory(route.params.initialCategory) : 'All'
+  );
+  // QA: this screen stays mounted under the Closet tab's stack, so
+  // picking a second, different category from Home's "Browse by
+  // category" navigated here again with a new initialCategory param —
+  // but useState's initializer only runs once on mount, so the screen
+  // kept showing whatever category was first selected (e.g. always
+  // "Bag") no matter what was tapped afterward. Watch the param itself
+  // and re-apply it whenever it actually changes.
+  const appliedInitialCategory = React.useRef(route.params?.initialCategory);
+  React.useEffect(() => {
+    const incoming = route.params?.initialCategory;
+    if (incoming && incoming !== appliedInitialCategory.current) {
+      appliedInitialCategory.current = incoming;
+      setCategory(normalizeCategory(incoming));
+    }
+  }, [route.params?.initialCategory]);
   const [refreshing, setRefreshing] = useState(false);
   const [tabs, setTabs] = useState<string[]>(FALLBACK_TABS);
   const [filters, setFilters] = useState<FilterValues>({});

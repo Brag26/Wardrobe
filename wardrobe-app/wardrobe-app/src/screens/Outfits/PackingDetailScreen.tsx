@@ -6,9 +6,10 @@
 // packed — there was no way to fix the trip's own name/destination/
 // dates/cover after creating it. Added an inline edit mode for that.
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, FlatList, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, FlatList, TextInput, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
+import { Calendar, DateData } from 'react-native-calendars';
 import * as ImagePicker from 'expo-image-picker';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { Button } from '../../components/Button';
@@ -31,6 +32,12 @@ export default function PackingDetailScreen() {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', destination: '', startDate: '', endDate: '', coverUri: null as string | null });
   const [saving, setSaving] = useState(false);
+  // QA: "Edit trip details" only had manual YYYY-MM-DD text fields
+  // while "Start packing" already had a real calendar — inconsistent,
+  // and error-prone to type by hand. Add the same calendar picker here
+  // too, without removing manual entry (some testers want both).
+  const [pickerFor, setPickerFor] = useState<'start' | 'end' | null>(null);
+  const todayISO = () => new Date().toISOString().slice(0, 10);
 
   const load = useCallback(async () => {
     const p = await getPacking(packingId);
@@ -118,13 +125,59 @@ export default function PackingDetailScreen() {
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             <View style={{ flex: 1 }}>
               <Text style={styles.formLabel}>Start date</Text>
-              <TextInput style={styles.input} value={editForm.startDate} onChangeText={(t) => setEditForm((p) => ({ ...p, startDate: t }))} placeholder="YYYY-MM-DD" placeholderTextColor={colors.inkMuted} />
+              <View style={styles.dateInputRow}>
+                <TextInput
+                  style={[styles.input, styles.dateTextInput]}
+                  value={editForm.startDate}
+                  onChangeText={(t) => setEditForm((p) => ({ ...p, startDate: t }))}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={colors.inkMuted}
+                />
+                <TouchableOpacity style={styles.calendarButton} onPress={() => setPickerFor('start')}>
+                  <AppIcon name="calendar" size={18} color={colors.ink} />
+                </TouchableOpacity>
+              </View>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.formLabel}>End date</Text>
-              <TextInput style={styles.input} value={editForm.endDate} onChangeText={(t) => setEditForm((p) => ({ ...p, endDate: t }))} placeholder="YYYY-MM-DD" placeholderTextColor={colors.inkMuted} />
+              <View style={styles.dateInputRow}>
+                <TextInput
+                  style={[styles.input, styles.dateTextInput]}
+                  value={editForm.endDate}
+                  onChangeText={(t) => setEditForm((p) => ({ ...p, endDate: t }))}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={colors.inkMuted}
+                />
+                <TouchableOpacity style={styles.calendarButton} onPress={() => setPickerFor('end')}>
+                  <AppIcon name="calendar" size={18} color={colors.ink} />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
+
+          <Modal visible={pickerFor !== null} transparent animationType="fade" onRequestClose={() => setPickerFor(null)}>
+            <TouchableOpacity style={styles.dateModalBackdrop} activeOpacity={1} onPress={() => setPickerFor(null)}>
+              <View style={styles.dateModalCard}>
+                <Calendar
+                  minDate={pickerFor === 'end' && editForm.startDate ? editForm.startDate : todayISO()}
+                  onDayPress={(day: DateData) => {
+                    if (pickerFor === 'start') {
+                      setEditForm((p) => ({
+                        ...p,
+                        startDate: day.dateString,
+                        endDate: p.endDate && p.endDate < day.dateString ? '' : p.endDate,
+                      }));
+                    } else if (pickerFor === 'end') {
+                      setEditForm((p) => ({ ...p, endDate: day.dateString }));
+                    }
+                    setPickerFor(null);
+                  }}
+                  theme={{ todayTextColor: colors.lavenderDeep, arrowColor: colors.inkMuted, selectedDayBackgroundColor: colors.ink }}
+                />
+              </View>
+            </TouchableOpacity>
+          </Modal>
+
           <View style={{ height: spacing.md }} />
           <Button label="Save changes" onPress={handleSaveEdit} loading={saving} />
         </ScrollView>
@@ -203,6 +256,14 @@ function makeStyles(colors: any) {
     metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
     outfitCell: { width: 100, alignItems: 'center' },
     outfitName: { fontSize: 11, color: colors.ink, marginTop: 4 },
+    dateInputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+    dateTextInput: { flex: 1 },
+    calendarButton: {
+      width: 42, height: 42, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+      backgroundColor: colors.bgSoft, alignItems: 'center', justifyContent: 'center',
+    },
+    dateModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
+    dateModalCard: { backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.sm, width: '90%' },
   });
 }
 

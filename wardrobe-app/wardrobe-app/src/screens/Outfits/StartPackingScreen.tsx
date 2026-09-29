@@ -90,18 +90,40 @@ export default function StartPackingScreen() {
         <Text style={styles.label}>Destination</Text>
         <TextInput style={styles.input} value={destination} onChangeText={setDestination} placeholder="e.g. Sydney" placeholderTextColor={colors.inkMuted} />
 
+        {/* QA: some testers still want to type the date directly rather
+            than open the calendar every time — keep both. The text
+            field accepts manual YYYY-MM-DD entry; the calendar icon
+            opens the same picker as before. */}
         <View style={styles.dateRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>Start date</Text>
-            <TouchableOpacity style={styles.input} onPress={() => setPickerFor('start')}>
-              <Text style={startDate ? styles.dateValueText : styles.dateValuePlaceholder}>{startDate || 'Select date'}</Text>
-            </TouchableOpacity>
+            <View style={styles.dateInputRow}>
+              <TextInput
+                style={[styles.input, styles.dateTextInput]}
+                value={startDate}
+                onChangeText={setStartDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={colors.inkMuted}
+              />
+              <TouchableOpacity style={styles.calendarButton} onPress={() => setPickerFor('start')}>
+                <AppIcon name="calendar" size={18} color={colors.ink} />
+              </TouchableOpacity>
+            </View>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>End date</Text>
-            <TouchableOpacity style={styles.input} onPress={() => setPickerFor('end')}>
-              <Text style={endDate ? styles.dateValueText : styles.dateValuePlaceholder}>{endDate || 'Select date'}</Text>
-            </TouchableOpacity>
+            <View style={styles.dateInputRow}>
+              <TextInput
+                style={[styles.input, styles.dateTextInput]}
+                value={endDate}
+                onChangeText={setEndDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={colors.inkMuted}
+              />
+              <TouchableOpacity style={styles.calendarButton} onPress={() => setPickerFor('end')}>
+                <AppIcon name="calendar" size={18} color={colors.ink} />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -158,6 +180,12 @@ function makeStyles(colors: any) {
     dateRow: { flexDirection: 'row', gap: spacing.sm },
     dateValueText: { fontSize: 15, color: colors.ink },
     dateValuePlaceholder: { fontSize: 15, color: colors.inkMuted },
+    dateInputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+    dateTextInput: { flex: 1 },
+    calendarButton: {
+      width: 42, height: 42, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+      backgroundColor: colors.bgSoft, alignItems: 'center', justifyContent: 'center',
+    },
     dateModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
     dateModalCard: { backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.sm, width: '90%' },
   });
