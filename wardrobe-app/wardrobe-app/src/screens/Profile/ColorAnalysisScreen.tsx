@@ -66,7 +66,25 @@ export default function ColorAnalysisScreen() {
 
   useEffect(() => { getProfile().then((p) => setResult(p.colorProfile)).catch(() => {}); }, []);
 
-  const pickPhoto = async () => {
+  // QA: the box was labeled "Tap to add a selfie" but only ever opened
+  // the photo library — no way to actually take one. Same choice
+  // pattern as Add Item's photo picker: Camera or Library.
+  const pickPhoto = () => {
+    Alert.alert('Add a selfie', undefined, [
+      { text: 'Take Photo', onPress: takeSelfie },
+      { text: 'Choose from Library', onPress: chooseFromLibrary },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const takeSelfie = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) return Alert.alert('Permission needed', 'Allow camera access to take a selfie.');
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true, aspect: [1, 1] });
+    if (!result.canceled) setPhotoUri(result.assets[0].uri);
+  };
+
+  const chooseFromLibrary = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return Alert.alert('Permission needed', 'Allow photo access for the color analysis.');
     const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.7, allowsEditing: true, aspect: [1, 1] });

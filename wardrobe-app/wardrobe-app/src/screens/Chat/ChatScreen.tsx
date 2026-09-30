@@ -61,7 +61,15 @@ export default function ChatScreen() {
     } catch {}
   };
 
-  useEffect(() => { load(); }, []);
+  // QA: opening Chat always landed at the TOP of the conversation
+  // instead of the latest message — with a long history, that meant
+  // scrolling all the way down by hand every time. `load()` on mount
+  // already fetches the full history; jump straight to its end once
+  // it renders, unanimated (an animated scroll on open reads as odd,
+  // vs. the animated one already used after sending a new message).
+  useEffect(() => {
+    load().then(() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 50));
+  }, []);
 
   const scrollDown = () => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
 

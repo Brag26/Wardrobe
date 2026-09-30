@@ -242,22 +242,11 @@ export default function OutfitsScreen() {
         }
         ListHeaderComponent={
           <View>
-            {/* Bug: there was no count anywhere on this page, unlike
-                "My packing" below which always shows "N trips". Same
-                treatment here, right above the outfit grid. */}
-            {outfits.length > 0 ? (
-              <View style={[styles.packingHeaderRow, { marginBottom: spacing.md }]}>
-                <Text style={styles.packingSectionTitle}>{viewAll ? 'All Outfits' : 'My Outfits'}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                  <Text style={styles.packingViewAll}>{outfits.length} outfit{outfits.length === 1 ? '' : 's'}</Text>
-                  {hasMoreOutfits && (
-                    <TouchableOpacity onPress={() => navigation.navigate('AllOutfits', { viewAll: true })}>
-                      <Text style={styles.viewMoreLink}>View More</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            ) : null}
+            {/* QA: "My Outfits" (with its View More link) was rendering
+                ABOVE "My packing", which read as unrelated to the outfit
+                grid directly below it. My packing now comes first, with
+                "My Outfits" sitting immediately above the grid it
+                actually labels. */}
             {!viewAll && packings.length > 0 ? (
               <View style={{ marginBottom: spacing.md }}>
                 <View style={styles.packingHeaderRow}>
@@ -283,6 +272,22 @@ export default function OutfitsScreen() {
                     </TouchableOpacity>
                   )}
                 />
+              </View>
+            ) : null}
+            {/* Bug: there was no count anywhere on this page, unlike
+                "My packing" above which always shows "N trips". Same
+                treatment here, right above the outfit grid. */}
+            {outfits.length > 0 ? (
+              <View style={[styles.packingHeaderRow, { marginBottom: spacing.md }]}>
+                <Text style={styles.packingSectionTitle}>{viewAll ? 'All Outfits' : 'My Outfits'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                  <Text style={styles.packingViewAll}>{outfits.length} outfit{outfits.length === 1 ? '' : 's'}</Text>
+                  {hasMoreOutfits && (
+                    <TouchableOpacity onPress={() => navigation.navigate('AllOutfits', { viewAll: true })}>
+                      <Text style={styles.viewMoreLink}>View More</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             ) : null}
           </View>
