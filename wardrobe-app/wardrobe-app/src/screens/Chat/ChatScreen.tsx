@@ -31,6 +31,14 @@ export default function ChatScreen() {
   const [listening, setListening] = useState(false);
   const [itemCache, setItemCache] = useState<Record<string, any>>({});
   const scrollRef = useRef<ScrollView>(null);
+  // QA (regression): a flat setTimeout(..., 50) guessed at when the
+  // history had finished laying out before jumping to the end — on a
+  // slower device, or with a longer conversation, 50ms wasn't always
+  // enough and the screen was still opening part-way up the thread.
+  // onContentSizeChange fires once the ScrollView's content has actually
+  // been measured, so this now jumps to the end only when there's real
+  // content to jump to, however long that took to render.
+  const didInitialScroll = useRef(false);
 
   // Ara's replies can now carry referencedItemIds (Ara's text actually
   // names a specific closet item — "your pink dress" etc.) — this
@@ -64,11 +72,10 @@ export default function ChatScreen() {
   // QA: opening Chat always landed at the TOP of the conversation
   // instead of the latest message — with a long history, that meant
   // scrolling all the way down by hand every time. `load()` on mount
-  // already fetches the full history; jump straight to its end once
-  // it renders, unanimated (an animated scroll on open reads as odd,
-  // vs. the animated one already used after sending a new message).
+  // fetches the full history; the actual jump to its end happens in
+  // onContentSizeChange below, once that history has really rendered.
   useEffect(() => {
-    load().then(() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 50));
+    load();
   }, []);
 
   const scrollDown = () => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
@@ -219,7 +226,17 @@ export default function ChatScreen() {
           OtpScreen, CreateOutfitScreen, etc): 'height' on Android,
           'padding' on iOS. */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView ref={scrollRef} style={styles.log} contentContainerStyle={{ padding: spacing.md }}>
+        <ScrollView
+          ref={scrollRef}
+          style={styles.log}
+          contentContainerStyle={{ padding: spacing.md }}
+          onContentSizeChange={() => {
+            if (!didInitialScroll.current && messages.length > 0) {
+              didInitialScroll.current = true;
+              scrollRef.current?.scrollToEnd({ animated: false });
+            }
+          }}
+        >
           {messages.length === 0 && !sending && (
             <View style={styles.assistantRow}>
               <View style={styles.miniAvatar}><AraMascot size={26} /></View>
